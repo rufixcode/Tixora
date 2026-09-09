@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 
-import { EventCard } from "@/components/event-card";
+import { EventCard } from "@/features/events/event-card";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Input } from "@/components/ui/input";

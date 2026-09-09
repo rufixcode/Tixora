@@ -12,7 +12,7 @@ import {
   Ticket,
 } from "lucide-react";
 
-import { SeatMap, type SeatSelection } from "@/components/seat-map";
+import { SeatMap, type SeatSelection } from "@/features/events/seat-map";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
