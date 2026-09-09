@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Laravel
+storage/*.key
+storage/logs/
+bootstrap/cache/
+
+# SQLite
+database/database.sqlite
+database/database.sqlite-*
+
+# Build files
+dist/
+build/
+.expo/
+.expo-shared/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
