@@ -1,9 +1,16 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute('/login')({
-  component: RouteComponent,
-})
+import { LoginForm } from "@/features/auth/login-form";
 
-function RouteComponent() {
-  return <div>Hello "/login"!</div>
-}
+export const Route = createFileRoute("/login")({
+  head: () => ({
+    meta: [
+      { title: "Sign In to Your Tixora Account" },
+      {
+        name: "description",
+        content: "Sign in to Tixora to access your tickets and bookings.",
+      },
+    ],
+  }),
+  component: LoginForm,
+});

@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Search, Ticket } from "lucide-react";
 
-import logo from "@/assets/tixora-logo.png.asset.json";
+import logo from "@/assets/Tixora_Logo.png";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
@@ -15,7 +15,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4">
         <Link to="/" className="flex shrink-0 items-center gap-2">
-          <img src={logo.url} alt="Tixora" width={112} height={32} className="h-8 w-auto" />
+          <img src={logo} alt="Tixora" width={112} height={32} className="h-12 w-auto" />
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
@@ -38,6 +38,15 @@ export function SiteHeader() {
               <span className="sr-only">Browse events</span>
             </Link>
           </Button>
+
+          <Button asChild variant="ghost" className="hidden sm:inline-flex">
+            <Link to="/login">Log in</Link>
+          </Button>
+
+          <Button asChild variant="outline" className="hidden sm:inline-flex">
+            <Link to="/register">Sign up</Link>
+          </Button>
+
           <Button asChild className="gap-2">
             <Link to="/events" search={{ q: undefined, category: undefined }}>
               <Ticket className="size-4" />
