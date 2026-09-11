@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 
@@ -13,12 +13,11 @@ import { apiRequest } from "@/lib/api";
 
 
 export function LoginForm() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
-  const [userName, setUserName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -49,8 +48,7 @@ export function LoginForm() {
 
       localStorage.setItem("tixora_token", response.token);
       localStorage.setItem("tixora_user", JSON.stringify(response.user));
-      setUserName(response.user.name || email);
-      setDone(true);
+      navigate({ to: "/" });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to sign in right now.";
       setError(message);
@@ -71,20 +69,7 @@ export function LoginForm() {
             Access your tickets, saved events and booking history.
           </p>
 
-          {done ? (
-            <div className="mt-6 rounded-2xl border border-border bg-secondary/50 p-5 text-sm">
-              <p className="font-semibold">You're signed in as {userName || email}</p>
-              <p className="mt-1 text-muted-foreground">
-                Your account is connected to the Laravel backend.
-              </p>
-              <Button asChild className="mt-4 w-full">
-                <Link to="/events" search={{ q: undefined, category: undefined }}>
-                  Browse events
-                </Link>
-              </Button>
-            </div>
-          ) : (
-            <form onSubmit={submit} className="mt-6 space-y-4">
+          <form onSubmit={submit} className="mt-6 space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -138,7 +123,6 @@ export function LoginForm() {
                 {isSubmitting ? "Signing in..." : "Sign in"}
               </Button>
             </form>
-          )}
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             New to Tixora?{" "}

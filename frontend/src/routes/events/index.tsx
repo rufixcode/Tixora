@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Search } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { EventCard } from "@/features/events/event-card";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Input } from "@/components/ui/input";
-import { CATEGORIES, EVENTS, type EventCategory } from "@/lib/events";
+import { CATEGORIES, fetchEvents, type EventCategory, type TixEvent } from "@/lib/events";
 
 type EventSearch = { q: string | undefined; category: EventCategory | undefined };
 
@@ -39,18 +40,34 @@ export const Route = createFileRoute("/events/")({
 function EventsPage() {
   const { q, category } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
+  const [results, setResults] = useState<TixEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const results = EVENTS.filter((event) => {
-    const matchesCategory = !category || event.category === category;
-    const needle = (q ?? "").toLowerCase().trim();
-    const matchesQuery =
-      !needle ||
-      [event.title, event.subtitle, event.venue, event.city, event.category]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
-    return matchesCategory && matchesQuery;
-  });
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      setIsLoading(true);
+
+      try {
+        const data = await fetchEvents({ q, category });
+
+        if (active) {
+          setResults(data);
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      active = false;
+    };
+  }, [q, category]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -100,16 +117,18 @@ function EventsPage() {
         </div>
 
         <p className="mt-6 text-sm text-muted-foreground">
-          {results.length} {results.length === 1 ? "event" : "events"} available
+          {isLoading ? "Loading events..." : `${results.length} ${results.length === 1 ? "event" : "events"} available`}
         </p>
 
-        <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {results.map((event) => (
-            <EventCard key={event.slug} event={event} />
-          ))}
-        </div>
+        {!isLoading ? (
+          <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {results.map((event) => (
+              <EventCard key={event.slug} event={event} />
+            ))}
+          </div>
+        ) : null}
 
-        {results.length === 0 ? (
+        {!isLoading && results.length === 0 ? (
           <div className="mt-10 rounded-2xl border border-dashed border-border p-12 text-center">
             <p className="font-semibold">No events matched that search.</p>
             <p className="mt-1 text-sm text-muted-foreground">Try a different artist, venue or city.</p>

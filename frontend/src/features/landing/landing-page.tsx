@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarDays, MapPin, Search, ShieldCheck, Smartphone, Zap } from "lucide-react";
 
 import heroFestival from "@/assets/hero-festival.jpg";
@@ -8,7 +8,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CATEGORIES, EVENTS } from "@/lib/events";
+import { CATEGORIES, fetchEvents, type TixEvent } from "@/lib/events";
 
 const PERKS = [
   { icon: Zap, title: "Instant checkout", copy: "Pick a tier, confirm, done — under 30 seconds." },
@@ -19,9 +19,42 @@ const PERKS = [
 export function LandingPage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
+  const [featured, setFeatured] = useState<TixEvent | null>(null);
+  const [trending, setTrending] = useState<TixEvent[]>([]);
 
-  const featured = EVENTS.find((event) => event.featured)!;
-  const trending = EVENTS.filter((event) => !event.featured).slice(0, 4);
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      try {
+        const [featuredData, trendingData] = await Promise.all([
+          fetchEvents({ featured: true, limit: 1 }),
+          fetchEvents({ limit: 4 }),
+        ]);
+
+        if (!active) {
+          return;
+        }
+
+        const featuredEvent = featuredData[0] ?? trendingData[0] ?? null;
+        setFeatured(featuredEvent);
+        setTrending(
+          trendingData.filter((event) => event.slug !== featuredEvent?.slug).slice(0, 4),
+        );
+      } catch {
+        if (active) {
+          setFeatured(null);
+          setTrending([]);
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -106,41 +139,43 @@ export function LandingPage() {
         </section>
 
         {/* Featured festival */}
-        <section className="mx-auto max-w-6xl px-4 pb-16">
-          <div className="relative isolate overflow-hidden rounded-3xl">
-            <img
-              src={featured.image}
-              alt={featured.title}
-              width={1920}
-              height={1088}
-              loading="lazy"
-              className="absolute inset-0 size-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/60 to-ink/20" />
-            <div className="relative flex flex-col gap-6 p-8 sm:p-12 md:flex-row md:items-end md:justify-between">
-              <div>
-                <span className="eyebrow rounded-md bg-gradient-primary px-2 py-1 text-primary-foreground">
-                  Featured
-                </span>
-                <h2 className="mt-4 text-4xl font-extrabold text-primary-foreground sm:text-5xl">
-                  {featured.title}
-                </h2>
-                <p className="mt-2 flex items-center gap-1.5 text-sm text-primary-foreground/80">
-                  <MapPin className="size-4" /> {featured.city}
-                </p>
-                <p className="mt-1 flex items-center gap-1.5 text-sm text-primary-foreground/80">
-                  <CalendarDays className="size-4" /> {featured.date} · {featured.time}
-                </p>
-                <p className="mt-3 max-w-lg text-sm text-primary-foreground/70">{featured.subtitle}</p>
+        {featured ? (
+          <section className="mx-auto max-w-6xl px-4 pb-16">
+            <div className="relative isolate overflow-hidden rounded-3xl">
+              <img
+                src={featured.image}
+                alt={featured.title}
+                width={1920}
+                height={1088}
+                loading="lazy"
+                className="absolute inset-0 size-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/60 to-ink/20" />
+              <div className="relative flex flex-col gap-6 p-8 sm:p-12 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <span className="eyebrow rounded-md bg-gradient-primary px-2 py-1 text-primary-foreground">
+                    Featured
+                  </span>
+                  <h2 className="mt-4 text-4xl font-extrabold text-primary-foreground sm:text-5xl">
+                    {featured.title}
+                  </h2>
+                  <p className="mt-2 flex items-center gap-1.5 text-sm text-primary-foreground/80">
+                    <MapPin className="size-4" /> {featured.city}
+                  </p>
+                  <p className="mt-1 flex items-center gap-1.5 text-sm text-primary-foreground/80">
+                    <CalendarDays className="size-4" /> {featured.date} · {featured.time}
+                  </p>
+                  <p className="mt-3 max-w-lg text-sm text-primary-foreground/70">{featured.subtitle}</p>
+                </div>
+                <Button asChild size="lg" className="shrink-0">
+                  <Link to="/events/$slug" params={{ slug: featured.slug }}>
+                    Get passes
+                  </Link>
+                </Button>
               </div>
-              <Button asChild size="lg" className="shrink-0">
-                <Link to="/events/$slug" params={{ slug: featured.slug }}>
-                  Get passes
-                </Link>
-              </Button>
             </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
 
         {/* Perks */}
         <section className="border-t border-border bg-secondary/40">

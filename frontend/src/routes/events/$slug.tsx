@@ -16,6 +16,7 @@ import { SeatMap, type SeatSelection } from "@/features/events/seat-map";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
+import { apiRequest } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -36,8 +37,8 @@ import {
 import { formatPrice, getEvent, SERVICE_FEE_RATE } from "@/lib/events";
 
 export const Route = createFileRoute("/events/$slug")({
-  loader: ({ params }) => {
-    const event = getEvent(params.slug);
+  loader: async ({ params }) => {
+    const event = await getEvent(params.slug);
     if (!event) throw notFound();
     return { event };
   },
@@ -76,6 +77,7 @@ function EventDetail() {
   const [seatError, setSeatError] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [booked, setBooked] = useState<{ ref: string; total: number } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const tier = event.tiers.find((item) => item.id === tierId) ?? event.tiers[0]!;
   const count = hasSeating ? seats.length : quantity;
@@ -111,12 +113,43 @@ function EventDetail() {
     setConfirmOpen(true);
   }
 
-  function confirmBooking() {
+  async function confirmBooking() {
     setConfirmOpen(false);
-    setBooked({
-      ref: `TX-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
-      total,
-    });
+    setIsSubmitting(true);
+
+    try {
+      const payload = hasSeating
+        ? {
+            email,
+            delivery,
+            seats: seats.map((seat) => ({ id: seat.id, label: seat.label })),
+          }
+        : {
+            email,
+            delivery,
+            quantity,
+            ticket_type_id: tierId,
+          };
+
+      const response = await apiRequest<{ message: string; booking_reference: string; total_amount: number }>(
+        `/events/${event.slug}/bookings`,
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+      );
+
+      setBooked({
+        ref: response.booking_reference,
+        total: response.total_amount,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to complete the booking.";
+      setSeatError(message);
+      setEmailError("");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -311,9 +344,9 @@ function EventDetail() {
                 </div>
               </dl>
 
-              <Button className="mt-5 w-full gap-2" size="lg" onClick={review}>
+              <Button className="mt-5 w-full gap-2" size="lg" onClick={review} disabled={isSubmitting}>
                 <Ticket className="size-4" />
-                Confirm purchase
+                {isSubmitting ? "Processing..." : "Confirm purchase"}
               </Button>
               <p className="mt-3 text-center text-xs text-muted-foreground">
                 {delivery} · free transfers up to 2 hours before showtime
@@ -340,7 +373,9 @@ function EventDetail() {
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={confirmBooking}>Confirm</Button>
+            <Button onClick={confirmBooking} disabled={isSubmitting}>
+              {isSubmitting ? "Processing..." : "Confirm"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
