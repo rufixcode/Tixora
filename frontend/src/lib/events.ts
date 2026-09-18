@@ -17,6 +17,12 @@ export type TicketTier = {
 
 export type EventCategory = "Concerts" | "Movies" | "Events";
 
+export type CinemaShowtime = {
+  cinema: string;
+  mall: string;
+  times: string[];
+};
+
 export type TixEvent = {
   slug: string;
   title: string;
@@ -32,6 +38,7 @@ export type TixEvent = {
   reviews?: number;
   featured?: boolean;
   seating?: "arena" | "cinema";
+  showtimes?: CinemaShowtime[];
   about: string;
   tiers: TicketTier[];
 };
@@ -159,32 +166,21 @@ export const EVENTS: TixEvent[] = [
     rating: 4.8,
     reviews: 3842,
     seating: "cinema",
+    showtimes: [
+      { cinema: "SM Cinema IMAX", mall: "SM Mall of Asia, Pasay", times: ["1:30 PM", "4:15 PM", "7:00 PM", "9:45 PM"] },
+      { cinema: "SM Cinema", mall: "SM Aura, Taguig", times: ["12:45 PM", "3:30 PM", "6:15 PM", "9:00 PM"] },
+      { cinema: "Ayala Cinemas", mall: "Greenbelt 3, Makati", times: ["2:00 PM", "5:00 PM", "8:00 PM"] },
+    ],
     about:
       "Watch Spider-Man's latest adventure on the giant IMAX screen with immersive sound and premium reserved seating.",
     tiers: [
       {
-        id: "standard",
-        name: "Standard",
-        price: 350,
-        note: "Regular cinema seating",
-        remaining: 86,
-        seatZone: { rows: 4, seatsPerRow: 14 },
-      },
-      {
-        id: "imax",
-        name: "IMAX",
-        price: 650,
-        note: "Premium IMAX presentation",
-        remaining: 48,
-        seatZone: { rows: 5, seatsPerRow: 16, rowOffset: 4 },
-      },
-      {
-        id: "director",
-        name: "Director's Club",
-        price: 850,
-        note: "Luxury recliner seating",
-        remaining: 18,
-        seatZone: { rows: 3, seatsPerRow: 10, rowOffset: 9 },
+        id: "cinema",
+        name: "Cinema Seat",
+        price: 300,
+        note: "Standard reserved cinema seating",
+        remaining: 112,
+        seatZone: { rows: 8, seatsPerRow: 14 },
       },
     ],
   },
@@ -203,34 +199,25 @@ export const EVENTS: TixEvent[] = [
     rating: 4.9,
     reviews: 5126,
     seating: "cinema",
+    showtimes: [
+      { cinema: "Director's Club Cinema", mall: "Glorietta 4, Makati", times: ["12:30 PM", "3:30 PM", "6:30 PM", "9:30 PM"] },
+      { cinema: "Power Plant Cinema", mall: "Rockwell Center, Makati", times: ["1:15 PM", "4:15 PM", "7:15 PM"] },
+      { cinema: "SM Cinema", mall: "SM Megamall, Mandaluyong", times: ["2:30 PM", "5:30 PM", "8:30 PM"] },
+    ],
     about:
       "Experience the next massive Marvel adventure with premium cinema presentation, immersive sound, and reserved seating.",
+
     tiers: [
       {
-        id: "regular",
-        name: "Regular",
-        price: 400,
-        note: "Standard premium cinema seating",
-        remaining: 94,
-        seatZone: { rows: 4, seatsPerRow: 14 },
-      },
-      {
-        id: "premium",
-        name: "Premium",
-        price: 550,
-        note: "Center seating with enhanced viewing",
-        remaining: 52,
-        seatZone: { rows: 4, seatsPerRow: 14, rowOffset: 4 },
-      },
-      {
-        id: "director",
-        name: "Director's Club",
-        price: 850,
-        note: "Luxury reclining seats",
-        remaining: 16,
-        seatZone: { rows: 3, seatsPerRow: 10, rowOffset: 8 },
+        id: "cinema",
+        name: "Cinema Seat",
+        price: 350,
+        note: "Standard reserved cinema seating",
+        remaining: 112,
+        seatZone: { rows: 8, seatsPerRow: 14 },
       },
     ],
+
   },
 
   {

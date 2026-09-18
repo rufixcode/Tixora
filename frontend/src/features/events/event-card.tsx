@@ -13,6 +13,7 @@ const BADGE_STYLES: Record<string, string> = {
 
 export function EventCard({ event }: { event: TixEvent }) {
   const from = Math.min(...event.tiers.map((tier) => tier.price));
+  const isMovie = event.category === "Movies";
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all hover:-translate-y-0.5 hover:shadow-glow">
@@ -43,6 +44,8 @@ export function EventCard({ event }: { event: TixEvent }) {
         </div>
 
         <div className="space-y-1 text-sm text-muted-foreground">
+          {!isMovie ? (
+            <>
           <p className="flex items-center gap-1.5">
             <MapPin className="size-3.5 shrink-0" />
             {event.venue}, {event.city}
@@ -51,6 +54,8 @@ export function EventCard({ event }: { event: TixEvent }) {
             <CalendarDays className="size-3.5 shrink-0" />
             {event.date} · {event.time}
           </p>
+            </>
+          ) : null}
           {event.rating ? (
             <p className="flex items-center gap-1.5">
               <Star className="size-3.5 shrink-0 fill-warning text-warning" />
