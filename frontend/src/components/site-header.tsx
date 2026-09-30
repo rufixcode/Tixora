@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Search, Ticket } from "lucide-react";
 
-import logo from "@/assets/Tixora_Logo.png";
+import logo from "@/assets/Official_Tixora_Logo.png";
 import { Button } from "@/components/ui/button";
 
 const NAV = [
