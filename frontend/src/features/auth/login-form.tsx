@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 
@@ -8,28 +8,53 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { apiRequest } from "@/lib/api";
 
 
 
 export function LoginForm() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       setError("Enter a valid email address.");
       return;
     }
+
     if (password.length < 6) {
       setError("Password must be at least 6 characters.");
       return;
     }
-    setDone(true);
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await apiRequest<{
+        message: string;
+        user: { name: string; email: string };
+        token: string;
+      }>("/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+
+      localStorage.setItem("tixora_token", response.token);
+      localStorage.setItem("tixora_user", JSON.stringify(response.user));
+      navigate({ to: "/" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to sign in right now.";
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -44,20 +69,7 @@ export function LoginForm() {
             Access your tickets, saved events and booking history.
           </p>
 
-          {done ? (
-            <div className="mt-6 rounded-2xl border border-border bg-secondary/50 p-5 text-sm">
-              <p className="font-semibold">You're signed in as {email}</p>
-              <p className="mt-1 text-muted-foreground">
-                This is a demo screen — no account is stored yet.
-              </p>
-              <Button asChild className="mt-4 w-full">
-                <Link to="/events" search={{ q: undefined, category: undefined }}>
-                  Browse events
-                </Link>
-              </Button>
-            </div>
-          ) : (
-            <form onSubmit={submit} className="mt-6 space-y-4">
+          <form onSubmit={submit} className="mt-6 space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -107,11 +119,10 @@ export function LoginForm() {
 
               {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
 
-              <Button type="submit" size="lg" className="w-full">
-                Sign in
+              <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Signing in..." : "Sign in"}
               </Button>
             </form>
-          )}
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             New to Tixora?{" "}

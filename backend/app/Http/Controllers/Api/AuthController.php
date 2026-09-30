@@ -5,27 +5,27 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Hash;    
 
 class AuthController extends Controller
 {
     public function register(Request $request)
-    
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required','string', 'min:8', 'confirmed'],
+            'name' => ['required', 'string', 'min:2', 'max:255'],
+            'email' => ['required', 'email:rfc,dns', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
 
-         ]);
-         
-         $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
+        $email = strtolower(trim($validated['email']));
+        $name = trim($validated['name']);
+
+        $user = User::create([
+            'name' => $name,
+            'email' => $email,
             'password' => Hash::make($validated['password']),
-         ]);
+        ]);
 
          $token = $user->createToken('api-token')->plainTextToken;
 
@@ -39,14 +39,17 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validated = $request->validate([
-            'email' =>['required', 'email'],
+            'email' => ['required', 'email:rfc,dns'],
             'password' => ['required', 'string'],
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $email = strtolower(trim($validated['email']));
 
-        if (!$user || !Hash::check($validated['password'], $user->password0)){
-            throw ValidationException::withMessages(['email' => ['Incorrect Email or Password'],
+        $user = User::query()->where('email', $email)->first();
+
+        if (!$user || !Hash::check($validated['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['Incorrect Email or Password'],
             ]);
         }
 
