@@ -7,6 +7,7 @@ import { HintRow } from '@/components/hint-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { WebBadge } from '@/components/web-badge';
+import TixoraApp from '@/components/tixora-app';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 
 function getDevMenuHint() {
@@ -28,7 +29,9 @@ function getDevMenuHint() {
   );
 }
 
-export default function HomeScreen() {
+// Kept as a reference for the Expo starter screen while Tixora replaces it incrementally.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function StarterScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -59,6 +62,10 @@ export default function HomeScreen() {
       </SafeAreaView>
     </ThemedView>
   );
+}
+
+export default function HomeScreen() {
+  return <TixoraApp />;
 }
 
 const styles = StyleSheet.create({
