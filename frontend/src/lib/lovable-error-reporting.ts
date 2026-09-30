@@ -24,7 +24,7 @@ declare global {
 }
 
 export function reportLovableError(error: unknown, context: Record<string, unknown> = {}) {
-  if (typeof window === "undefined") return;
+  if (!import.meta.env.DEV || typeof window === "undefined") return;
   window.__lovableEvents?.captureException?.(
     error,
     {

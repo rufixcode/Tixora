@@ -11,8 +11,8 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10
 Route::post('/logout', [AuthController::class, 'logout'])->middleware(['auth:sanctum', 'throttle:30,1']);
 Route::get('/me', [AuthController::class, 'me'])->middleware(['auth:sanctum', 'throttle:60,1']);
 
-Route::get('/events', [EventController::class, 'index']);
-Route::get('/events/{slug}', [EventController::class, 'show']);
+Route::get('/events', [EventController::class, 'index'])->middleware('throttle:120,1');
+Route::get('/events/{slug}', [EventController::class, 'show'])->middleware('throttle:120,1');
 Route::post('/events/{slug}/bookings', [BookingController::class, 'store'])
     ->middleware(['auth:sanctum', 'throttle:20,1']);
 

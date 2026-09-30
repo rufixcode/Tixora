@@ -1,81 +1,52 @@
-const API_BASE_URL = ((import.meta.env as Record<string, string | undefined>).VITE_API_URL ?? "http://localhost:8000/api").replace(/\/+$/, "");
-
-export type ApiErrorPayload = {
-  message?: string;
-  errors?: Record<string, string[] | string>;
-};
-
-export function getStoredAuthToken(): string | null {
-  return localStorage.getItem("tixora_token");
-}
-
-export function getStoredUser(): { name?: string; email?: string } | null {
-  const storedUser = localStorage.getItem("tixora_user");
-
-  if (!storedUser) {
-    return null;
+// Browsers use same-origin session routes; SSR only reads public API data.
+function baseUrl() {
+  if (import.meta.env.SSR) {
+    return (process.env["API_INTERNAL_URL"] ?? "http://127.0.0.1:8000/api").replace(/\/+$/, "");
   }
-
-  try {
-    return JSON.parse(storedUser);
-  } catch {
-    return null;
-  }
-}
-
-export function clearStoredAuth() {
-  localStorage.removeItem("tixora_token");
-  localStorage.removeItem("tixora_user");
+  return "/web";
 }
 
 export async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getStoredAuthToken();
-  const headers = new Headers(options.headers ?? {});
-
+  if (!endpoint.startsWith("/") || endpoint.startsWith("//")) throw new Error("Invalid API path.");
+  const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
-
-  if (!(options.body instanceof FormData)) {
+  if (options.body && !(options.body instanceof FormData))
     headers.set("Content-Type", "application/json");
+  if (!import.meta.env.SSR) {
+    // Remove credentials left behind by the previous web client.
+    try {
+      localStorage.removeItem("tixora_token");
+      localStorage.removeItem("tixora_user");
+    } catch {
+      /* Browser storage may be disabled. */
+    }
+    if (!["GET", "HEAD", "OPTIONS"].includes((options.method ?? "GET").toUpperCase())) {
+      const csrf = await fetch("/sanctum/csrf-cookie", {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+      });
+      if (!csrf.ok) throw new Error("Unable to initialize a secure session.");
+      const cookie = document.cookie.split("; ").find((value) => value.startsWith("XSRF-TOKEN="));
+      if (!cookie) throw new Error("Please enable cookies and try again.");
+      headers.set("X-XSRF-TOKEN", decodeURIComponent(cookie.slice("XSRF-TOKEN=".length)));
+    }
   }
-
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const response = await fetch(`${baseUrl()}${endpoint}`, {
     ...options,
     headers,
+    credentials: "same-origin",
   });
-
-  const contentType = response.headers.get("content-type") ?? "";
-  const body = contentType.includes("application/json") ? await response.json() : await response.text();
-
+  const body = response.headers.get("content-type")?.includes("application/json")
+    ? await response.json()
+    : null;
   if (!response.ok) {
-    let message = "Something went wrong while contacting the server.";
-
-    if (typeof body === "object" && body !== null) {
-      const apiBody = body as ApiErrorPayload;
-
-      if (apiBody.message) {
-        message = apiBody.message;
-      } else if (apiBody.errors) {
-        const firstError = Object.values(apiBody.errors)[0];
-
-        if (Array.isArray(firstError)) {
-          message = firstError[0] ?? message;
-        } else if (firstError) {
-          message = firstError;
-        }
-      }
-    } else if (typeof body === "string" && body) {
-      message = body;
-    }
-
-    const error = new Error(message) as Error & { status?: number; data?: unknown };
-    error.status = response.status;
-    error.data = body;
-    throw error;
+    const message =
+      response.status >= 500
+        ? "The service is temporarily unavailable. Please try again later."
+        : typeof body?.message === "string"
+          ? body.message
+          : "Unable to complete the request.";
+    throw Object.assign(new Error(message), { status: response.status });
   }
-
   return body as T;
 }
