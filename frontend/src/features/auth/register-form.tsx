@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { apiRequest } from "@/lib/api";
 
 export function RegisterForm() {
   const [name, setName] = useState("");
@@ -18,16 +19,59 @@ export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userName, setUserName] = useState("");
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (name.trim().length < 2) return setError("Enter your full name.");
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setError("Enter a valid email address.");
-    if (password.length < 6) return setError("Password must be at least 6 characters.");
-    if (password !== confirm) return setError("Passwords do not match.");
-    if (!agree) return setError("Please accept the terms to continue.");
-    setDone(true);
+
+    if (name.trim().length < 2) {
+      setError("Enter your full name.");
+      return;
+    }
+
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    if (password !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    if (!agree) {
+      setError("Please accept the terms to continue.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const response = await apiRequest<{
+        message: string;
+        user: { name: string; email: string };
+        token: string;
+      }>("/register", {
+        method: "POST",
+        body: JSON.stringify({ name, email, password, password_confirmation: confirm }),
+      });
+
+      window.dispatchEvent(new Event("auth-changed"));
+      setUserName(response.user.name || name.trim());
+      setDone(true);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Unable to create your account right now.";
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -44,9 +88,9 @@ export function RegisterForm() {
 
           {done ? (
             <div className="mt-6 rounded-2xl border border-border bg-secondary/50 p-5 text-sm">
-              <p className="font-semibold">Welcome, {name.trim()}!</p>
+              <p className="font-semibold">Welcome, {userName || name.trim()}!</p>
               <p className="mt-1 text-muted-foreground">
-                This is a demo screen — no account is stored yet.
+                Your account has been created successfully.
               </p>
               <Button asChild className="mt-4 w-full">
                 <Link to="/events" search={{ q: undefined, category: undefined }}>
@@ -97,7 +141,7 @@ export function RegisterForm() {
                     autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="At least 6 characters"
+                    placeholder="At least 8 characters"
                     className="h-11 pl-9 pr-10"
                   />
                   <button
@@ -131,7 +175,7 @@ export function RegisterForm() {
                 <Checkbox
                   id="agree"
                   checked={agree}
-                  onCheckedChange={(v) => setAgree(v === true)}
+                  onCheckedChange={(v: boolean | "indeterminate") => setAgree(v === true)}
                   className="mt-0.5"
                 />
                 I agree to the Tixora terms and refund policy.
@@ -139,8 +183,8 @@ export function RegisterForm() {
 
               {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
 
-              <Button type="submit" size="lg" className="w-full">
-                Create account
+              <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Creating account..." : "Create account"}
               </Button>
             </form>
           )}

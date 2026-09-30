@@ -46,14 +46,14 @@ export function EventCard({ event }: { event: TixEvent }) {
         <div className="space-y-1 text-sm text-muted-foreground">
           {!isMovie ? (
             <>
-          <p className="flex items-center gap-1.5">
-            <MapPin className="size-3.5 shrink-0" />
-            {event.venue}, {event.city}
-          </p>
-          <p className="flex items-center gap-1.5">
-            <CalendarDays className="size-3.5 shrink-0" />
-            {event.date} · {event.time}
-          </p>
+              <p className="flex items-center gap-1.5">
+                <MapPin className="size-3.5 shrink-0" />
+                {event.venue}, {event.city}
+              </p>
+              <p className="flex items-center gap-1.5">
+                <CalendarDays className="size-3.5 shrink-0" />
+                {event.date} · {event.time}
+              </p>
             </>
           ) : null}
           {event.rating ? (
@@ -68,11 +68,13 @@ export function EventCard({ event }: { event: TixEvent }) {
         <div className="mt-auto flex items-end justify-between gap-3 border-t border-border pt-3">
           <div>
             <p className="eyebrow text-muted-foreground">Price</p>
-            <p className="text-base font-bold">From {formatPrice(from)}</p>
+            <p className="text-base font-bold">
+              {Number.isFinite(from) ? `From ${formatPrice(from)}` : "Pricing coming soon"}
+            </p>
           </div>
           <Button asChild size="sm">
             <Link to="/events/$slug" params={{ slug: event.slug }}>
-              Get tickets
+              View event
             </Link>
           </Button>
         </div>
