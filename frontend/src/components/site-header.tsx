@@ -85,6 +85,7 @@ export function SiteHeader() {
           {user ? (
             <>
               <span className="hidden text-sm sm:inline">{user.name}</span>
+              <Button asChild variant="ghost"><Link to="/settings">Settings</Link></Button>
               <Button variant="outline" disabled={signingOut} onClick={logout}>
                 {signingOut ? "Signing out..." : "Sign out"}
               </Button>
