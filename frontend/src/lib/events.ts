@@ -1,3 +1,4 @@
+import { apiRequest } from "./api";
 import eventConcert from "@/assets/event-concert.jpg";
 import eventMovies from "@/assets/event-movies.jpg";
 
@@ -13,6 +14,7 @@ export type TicketTier = {
 export type EventCategory = "Concerts" | "Movies" | "Events";
 
 export type TixEvent = {
+  booking_available?: boolean;
   slug: string;
   title: string;
   subtitle: string;
@@ -35,9 +37,12 @@ export const CATEGORIES = ["Concerts", "Movies", "Events"] as const;
 
 export const SERVICE_FEE_RATE = 0.08;
 
-export const EVENTS: TixEvent[] = [];
-
-export async function fetchEvents(params?: { q?: string; category?: string; featured?: boolean; limit?: number }) {
+export async function fetchEvents(params?: {
+  q?: string | undefined;
+  category?: string | undefined;
+  featured?: boolean;
+  limit?: number;
+}) {
   const query = new URLSearchParams();
 
   if (params?.q) query.set("q", params.q);
@@ -45,13 +50,9 @@ export async function fetchEvents(params?: { q?: string; category?: string; feat
   if (params?.featured) query.set("featured", "true");
   if (params?.limit) query.set("limit", String(params.limit));
 
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:8000/api"}/events${query.toString() ? `?${query.toString()}` : ""}`);
-
-  if (!response.ok) {
-    throw new Error("Failed to load events");
-  }
-
-  const data = (await response.json()) as TixEvent[];
+  const data = await apiRequest<TixEvent[]>(
+    `/events${query.toString() ? `?${query.toString()}` : ""}`,
+  );
 
   return data.map((event) => ({
     ...event,
@@ -60,13 +61,13 @@ export async function fetchEvents(params?: { q?: string; category?: string; feat
 }
 
 export async function getEvent(slug: string) {
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:8000/api"}/events/${slug}`);
-
-  if (!response.ok) {
-    return undefined;
+  let event: TixEvent;
+  try {
+    event = await apiRequest<TixEvent>(`/events/${encodeURIComponent(slug)}`);
+  } catch (error) {
+    if ((error as { status?: number }).status === 404) return undefined;
+    throw error;
   }
-
-  const event = (await response.json()) as TixEvent;
 
   return {
     ...event,

@@ -53,20 +53,21 @@ export function RegisterForm() {
 
     try {
       setIsSubmitting(true);
-      const response = await apiRequest<{ message: string; user: { name: string; email: string }; token: string }>(
-        "/register",
-        {
-          method: "POST",
-          body: JSON.stringify({ name, email, password, password_confirmation: confirm }),
-        },
-      );
+      const response = await apiRequest<{
+        message: string;
+        user: { name: string; email: string };
+        token: string;
+      }>("/register", {
+        method: "POST",
+        body: JSON.stringify({ name, email, password, password_confirmation: confirm }),
+      });
 
-      localStorage.setItem("tixora_token", response.token);
-      localStorage.setItem("tixora_user", JSON.stringify(response.user));
+      window.dispatchEvent(new Event("auth-changed"));
       setUserName(response.user.name || name.trim());
       setDone(true);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to create your account right now.";
+      const message =
+        err instanceof Error ? err.message : "Unable to create your account right now.";
       setError(message);
     } finally {
       setIsSubmitting(false);

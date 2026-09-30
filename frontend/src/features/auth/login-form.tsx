@@ -5,12 +5,9 @@ import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/api";
-
-
 
 export function LoginForm() {
   const navigate = useNavigate();
@@ -37,17 +34,15 @@ export function LoginForm() {
     try {
       setIsSubmitting(true);
 
-      const response = await apiRequest<{
+      await apiRequest<{
         message: string;
         user: { name: string; email: string };
-        token: string;
       }>("/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
 
-      localStorage.setItem("tixora_token", response.token);
-      localStorage.setItem("tixora_user", JSON.stringify(response.user));
+      window.dispatchEvent(new Event("auth-changed"));
       navigate({ to: "/" });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to sign in right now.";
@@ -70,59 +65,52 @@ export function LoginForm() {
           </p>
 
           <form onSubmit={submit} className="mt-6 space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@email.com"
-                    className="h-11 pl-9"
-                  />
-                </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@email.com"
+                  className="h-11 pl-9"
+                />
               </div>
+            </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="h-11 pl-9 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="h-11 pl-9 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
               </div>
+            </div>
 
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Checkbox id="remember" /> Remember me
-                </label>
-                <span className="text-sm font-medium text-primary">Forgot password?</span>
-              </div>
+            {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
 
-              {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
-
-              <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Signing in..." : "Sign in"}
-              </Button>
-            </form>
+            <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Signing in..." : "Sign in"}
+            </Button>
+          </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             New to Tixora?{" "}

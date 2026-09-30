@@ -12,6 +12,10 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        if (!app()->environment(['local', 'testing'])) {
+            throw new \RuntimeException('Demo data must not be seeded outside local/testing environments.');
+        }
+
         /*
         |--------------------------------------------------------------------------
         | USERS

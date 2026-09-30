@@ -44,7 +44,9 @@ export const Route = createFileRoute("/events/$slug")({
   },
   head: ({ loaderData }) => {
     const event = loaderData?.event;
-    const title = event ? `${event.title} Tickets — ${event.city} | Tixora` : "Event Tickets | Tixora";
+    const title = event
+      ? `${event.title} Tickets — ${event.city} | Tixora`
+      : "Event Tickets | Tixora";
     const description = event
       ? `Book ${event.title} tickets at ${event.venue}, ${event.city} on ${event.date}. Pick your tier and check out in seconds.`
       : "Book tickets for live events on Tixora.";
@@ -67,8 +69,8 @@ const DELIVERY = ["Mobile Entry", "Will Call / Box Office", "Print-at-Home"];
 function EventDetail() {
   const { event } = Route.useLoaderData();
 
-  const hasSeating = Boolean(event.seating);
-  const [tierId, setTierId] = useState(event.tiers[0]!.id);
+  const hasSeating = Boolean(event.booking_available && event.seating);
+  const [tierId, setTierId] = useState(event.tiers[0]?.id ?? "");
   const [quantity, setQuantity] = useState(2);
   const [seats, setSeats] = useState<SeatSelection[]>([]);
   const [delivery, setDelivery] = useState(DELIVERY[0]!);
@@ -79,7 +81,8 @@ function EventDetail() {
   const [booked, setBooked] = useState<{ ref: string; total: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const tier = event.tiers.find((item) => item.id === tierId) ?? event.tiers[0]!;
+  const tier = event.tiers.find((item) => item.id === tierId) ??
+    event.tiers[0] ?? { id: "", name: "Unavailable", price: 0, remaining: 0 };
   const count = hasSeating ? seats.length : quantity;
   const orderLabel = hasSeating
     ? seats.map((seat) => seat.label).join(", ")
@@ -99,6 +102,7 @@ function EventDetail() {
   }
 
   function review() {
+    if (!event.booking_available) return;
     if (hasSeating && seats.length === 0) {
       setEmailError("");
       setSeatError("Please pick at least one seat from the map");
@@ -114,6 +118,7 @@ function EventDetail() {
   }
 
   async function confirmBooking() {
+    if (!event.booking_available || isSubmitting) return;
     setConfirmOpen(false);
     setIsSubmitting(true);
 
@@ -131,13 +136,14 @@ function EventDetail() {
             ticket_type_id: tierId,
           };
 
-      const response = await apiRequest<{ message: string; booking_reference: string; total_amount: number }>(
-        `/events/${event.slug}/bookings`,
-        {
-          method: "POST",
-          body: JSON.stringify(payload),
-        },
-      );
+      const response = await apiRequest<{
+        message: string;
+        booking_reference: string;
+        total_amount: number;
+      }>(`/events/${event.slug}/bookings`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
       setBooked({
         ref: response.booking_reference,
@@ -214,39 +220,39 @@ function EventDetail() {
             {hasSeating ? (
               <div className="mt-6">
                 <SeatMap event={event} selected={seats} onToggle={toggleSeat} />
-                {seatError ? (
-                  <p className="mt-3 text-sm text-destructive">{seatError}</p>
-                ) : null}
+                {seatError ? <p className="mt-3 text-sm text-destructive">{seatError}</p> : null}
               </div>
             ) : (
-            <div className="mt-6 space-y-3">
-              {event.tiers.map((item) => {
-                const selected = item.id === tier.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setTierId(item.id)}
-                    className={`flex w-full items-center justify-between gap-4 rounded-2xl border p-4 text-left transition-all ${
-                      selected
-                        ? "border-primary bg-accent shadow-glow"
-                        : "border-border bg-card hover:border-primary/40"
-                    }`}
-                  >
-                    <div>
-                      <p className="font-bold">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">{item.note}</p>
-                      <p className="mt-1 text-xs font-semibold text-coral">
-                        {item.remaining} remaining
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold">{formatPrice(item.price)}</p>
-                      <p className="eyebrow text-muted-foreground">per ticket</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+              <div className="mt-6 space-y-3">
+                {event.tiers.map((item) => {
+                  const selected = item.id === tier.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setTierId(item.id)}
+                      className={`flex w-full items-center justify-between gap-4 rounded-2xl border p-4 text-left transition-all ${
+                        selected
+                          ? "border-primary bg-accent shadow-glow"
+                          : "border-border bg-card hover:border-primary/40"
+                      }`}
+                    >
+                      <div>
+                        <p className="font-bold">{item.name}</p>
+                        <p className="text-sm text-muted-foreground">{item.note}</p>
+                        <p className="mt-1 text-xs font-semibold text-coral">
+                          {event.booking_available
+                            ? `${item.remaining} remaining`
+                            : "Availability coming soon"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold">{formatPrice(item.price)}</p>
+                        <p className="eyebrow text-muted-foreground">per ticket</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             )}
 
             <div className="mt-8 grid gap-5 sm:grid-cols-2">
@@ -293,7 +299,9 @@ function EventDetail() {
               {hasSeating ? (
                 <div className="mt-5 rounded-xl bg-muted/60 p-3">
                   <p className="text-sm font-medium">
-                    {seats.length ? `${seats.length} seat${seats.length > 1 ? "s" : ""} selected` : "No seats selected yet"}
+                    {seats.length
+                      ? `${seats.length} seat${seats.length > 1 ? "s" : ""} selected`
+                      : "No seats selected yet"}
                   </p>
                   {seats.length ? (
                     <p className="mt-1 text-xs text-muted-foreground">{orderLabel}</p>
@@ -304,27 +312,27 @@ function EventDetail() {
                   )}
                 </div>
               ) : (
-              <div className="mt-5 flex items-center justify-between">
-                <span className="text-sm font-medium">Quantity</span>
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    aria-label="Decrease quantity"
-                  >
-                    <Minus className="size-4" />
-                  </Button>
-                  <span className="w-6 text-center font-bold">{quantity}</span>
-                  <Button
-                    size="icon"
-                    onClick={() => setQuantity((q) => Math.min(8, q + 1))}
-                    aria-label="Increase quantity"
-                  >
-                    <Plus className="size-4" />
-                  </Button>
+                <div className="mt-5 flex items-center justify-between">
+                  <span className="text-sm font-medium">Quantity</span>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      aria-label="Decrease quantity"
+                    >
+                      <Minus className="size-4" />
+                    </Button>
+                    <span className="w-6 text-center font-bold">{quantity}</span>
+                    <Button
+                      size="icon"
+                      onClick={() => setQuantity((q) => Math.min(8, q + 1))}
+                      aria-label="Increase quantity"
+                    >
+                      <Plus className="size-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
               )}
 
               <dl className="mt-5 space-y-2 border-t border-border pt-4 text-sm">
@@ -344,9 +352,18 @@ function EventDetail() {
                 </div>
               </dl>
 
-              <Button className="mt-5 w-full gap-2" size="lg" onClick={review} disabled={isSubmitting}>
+              <Button
+                className="mt-5 w-full gap-2"
+                size="lg"
+                onClick={review}
+                disabled={isSubmitting || !event.booking_available || !event.tiers.length}
+              >
                 <Ticket className="size-4" />
-                {isSubmitting ? "Processing..." : "Confirm purchase"}
+                {!event.booking_available
+                  ? "Booking coming soon"
+                  : isSubmitting
+                    ? "Processing..."
+                    : "Confirm purchase"}
               </Button>
               <p className="mt-3 text-center text-xs text-muted-foreground">
                 {delivery} · free transfers up to 2 hours before showtime
@@ -364,9 +381,8 @@ function EventDetail() {
           <DialogHeader>
             <DialogTitle>Confirm booking</DialogTitle>
             <DialogDescription>
-              You are placing a reservation for {orderLabel || `${count} tickets`} to {event.title}. Total{" "}
-              {formatPrice(total)}, charged to {email}. Tickets are subject to our standard refund
-              policy.
+              You are placing a reservation for {orderLabel || `${count} tickets`} to {event.title}.
+              Total {formatPrice(total)}. Your contact email is {email}.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -389,9 +405,8 @@ function EventDetail() {
             </span>
             <DialogTitle className="mt-3">Tickets booked successfully</DialogTitle>
             <DialogDescription>
-              Booking reference <strong>{booked?.ref}</strong> — {orderLabel} for{" "}
-              {event.title}. A {delivery.toLowerCase()} pass and receipt for{" "}
-              {formatPrice(booked?.total ?? 0)} were sent to {email}.
+              Booking reference <strong>{booked?.ref}</strong> — {orderLabel} for {event.title}.
+              Total: {formatPrice(booked?.total ?? 0)}.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

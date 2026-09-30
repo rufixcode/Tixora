@@ -5,12 +5,6 @@ export type SeatSelection = { id: string; label: string; price: number; zone: st
 
 const ROW_LETTERS = "ABCDEFGHJKLMNPQRS".split("");
 
-function isTaken(id: string) {
-  let hash = 7;
-  for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) % 9973;
-  return hash % 6 === 0;
-}
-
 type SeatMapProps = {
   event: TixEvent;
   selected: SeatSelection[];
@@ -36,7 +30,10 @@ export function SeatMap({ event, selected, onToggle, maxSeats = 8 }: SeatMapProp
       <div className="space-y-7 overflow-x-auto pb-2">
         {zones.map((tier, zoneIndex) => {
           const zone = tier.seatZone!;
-          const rows = Array.from({ length: zone.rows }, (_, i) => ROW_LETTERS[(zone.rowOffset ?? 0) + i] ?? "Z");
+          const rows = Array.from(
+            { length: zone.rows },
+            (_, i) => ROW_LETTERS[(zone.rowOffset ?? 0) + i] ?? "Z",
+          );
           return (
             <div key={tier.id}>
               <div className="mb-2 flex items-center justify-between gap-3">
@@ -62,7 +59,8 @@ export function SeatMap({ event, selected, onToggle, maxSeats = 8 }: SeatMapProp
                         const number = seatIndex + 1;
                         const id = `${tier.id}-${row}${number}`;
                         const label = `${tier.name.split(" ")[0]} ${row}${number}`;
-                        const taken = isTaken(id);
+                        // Availability must come from server inventory before this map is enabled.
+                        const taken = true;
                         const isSelected = selectedIds.has(id);
                         const gapAfter =
                           kind === "cinema" && number === Math.floor(zone.seatsPerRow / 2);
@@ -71,7 +69,9 @@ export function SeatMap({ event, selected, onToggle, maxSeats = 8 }: SeatMapProp
                             key={id}
                             type="button"
                             disabled={taken || (!isSelected && selected.length >= maxSeats)}
-                            onClick={() => onToggle({ id, label, price: tier.price, zone: tier.name })}
+                            onClick={() =>
+                              onToggle({ id, label, price: tier.price, zone: tier.name })
+                            }
                             aria-label={`${label} — ${taken ? "unavailable" : formatPrice(tier.price)}`}
                             aria-pressed={isSelected}
                             title={`${row}${number} · ${formatPrice(tier.price)}`}

@@ -12,6 +12,7 @@ class EventController extends Controller
 {
     public function index(Request $request)
     {
+        $request->validate(['q' => ['nullable', 'string', 'max:200'], 'category' => ['nullable', 'in:Movies,Concerts,Events'], 'limit' => ['nullable', 'integer', 'min:1', 'max:100']]);
         $events = $this->allEvents();
 
         if ($request->filled('category')) {
@@ -29,13 +30,13 @@ class EventController extends Controller
                     return true;
                 }
 
-                $haystack = collect([
+                $haystack = Str::lower(collect([
                     $event['title'],
                     $event['subtitle'],
                     $event['venue'],
                     $event['city'],
                     $event['category'],
-                ])->join(' ')->lower();
+                ])->join(' '));
 
                 return Str::contains($haystack, $needle);
             });
@@ -60,7 +61,7 @@ class EventController extends Controller
     {
         $event = $this->allEvents()->first(fn ($item) => $item['slug'] === $slug);
 
-        if (!$event) {
+        if (! $event) {
             return response()->json([
                 'message' => 'Event not found.',
             ], 404);
@@ -85,7 +86,7 @@ class EventController extends Controller
             $events->push($entry);
         }
 
-        return $events->values();
+        return $events->map(fn ($event) => [...$event, 'booking_available' => false])->values();
     }
 
     private function movies(): array
@@ -140,11 +141,11 @@ class EventController extends Controller
                 'about' => $movie->description ?: 'Catch this movie in cinemas near you.',
                 'tiers' => [
                     [
-                        'id' => 'movie-' . $movie->id,
+                        'id' => 'movie-'.$movie->id,
                         'name' => 'Standard Admission',
                         'price' => $firstScreening ? (float) $firstScreening->ticket_price : 0,
                         'note' => $firstScreening
-                            ? 'Showing at ' . $firstScreening->screen_name . ' • ' . $firstScreening->cinema_name
+                            ? 'Showing at '.$firstScreening->screen_name.' • '.$firstScreening->cinema_name
                             : 'Reserved seating movie experience',
                         'remaining' => $firstScreening ? max(1, $firstScreening->capacity) : 1,
                     ],
@@ -185,7 +186,7 @@ class EventController extends Controller
             $collection[] = [
                 'slug' => Str::slug($concert->name),
                 'title' => $concert->name,
-                'subtitle' => $concert->artist ? 'Featuring ' . $concert->artist : 'Live music experience',
+                'subtitle' => $concert->artist ? 'Featuring '.$concert->artist : 'Live music experience',
                 'category' => 'Concerts',
                 'venue' => $concert->venue_name,
                 'city' => $concert->city,
@@ -200,7 +201,7 @@ class EventController extends Controller
                 'about' => $concert->description ?: 'An unforgettable live performance in Davao.',
                 'tiers' => $ticketTypes->map(function ($ticketType) {
                     return [
-                        'id' => 'ticket-' . $ticketType->id,
+                        'id' => 'ticket-'.$ticketType->id,
                         'name' => $ticketType->name,
                         'price' => (float) $ticketType->price,
                         'note' => $ticketType->description ?: 'Premium concert access',
@@ -257,7 +258,7 @@ class EventController extends Controller
                 'about' => $event->description ?: 'A curated event experience for you.',
                 'tiers' => $ticketTypes->map(function ($ticketType) {
                     return [
-                        'id' => 'ticket-' . $ticketType->id,
+                        'id' => 'ticket-'.$ticketType->id,
                         'name' => $ticketType->name,
                         'price' => (float) $ticketType->price,
                         'note' => $ticketType->description ?: 'Event access',

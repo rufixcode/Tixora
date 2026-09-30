@@ -7,6 +7,21 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  nitro: { preset: "node-server" },
+  vite: {
+    build: { sourcemap: false },
+    server: {
+      proxy: Object.fromEntries(
+        ["/web", "/api", "/sanctum"].map((path) => [
+          path,
+          {
+            target: "http://127.0.0.1:8000",
+            changeOrigin: false,
+          },
+        ]),
+      ),
+    },
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
