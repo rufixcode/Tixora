@@ -1,4 +1,4 @@
-import { apiRequest } from '@/lib/api';
+import { ApiError, apiRequest } from '@/lib/api';
 
 export type EventCategory = 'Concerts' | 'Movies' | 'Events';
 export type TicketTier = { id: string; name: string; price: number; note: string; remaining: number };
@@ -12,6 +12,16 @@ export async function fetchEvents(params: { q?: string; category?: EventCategory
   if (params.featured) query.set('featured', 'true');
   if (params.limit) query.set('limit', String(params.limit));
   return apiRequest<TixEvent[]>(`/events${query.size ? `?${query}` : ''}`);
+}
+
+// The Laravel API uses one detail endpoint for movies, concerts, and events.
+export async function getEvent(slug: string) {
+  try {
+    return await apiRequest<TixEvent>(`/events/${encodeURIComponent(slug)}`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 export function formatPrice(value: number) { return value.toLocaleString('en-PH', { currency: 'PHP', style: 'currency' }); }

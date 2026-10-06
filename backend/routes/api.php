@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
+use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\EventController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,15 @@ Route::get('/me', [AuthController::class, 'me'])->middleware(['auth:sanctum', 't
 Route::get('/events', [EventController::class, 'index'])->middleware('throttle:120,1');
 Route::get('/events/{slug}', [EventController::class, 'show'])->middleware('throttle:120,1');
 Route::post('/events/{slug}/bookings', [BookingController::class, 'store'])
+    ->middleware(['auth:sanctum', 'throttle:20,1']);
+
+Route::get('/movies/{slug}/screenings', [CinemaController::class, 'screenings'])->middleware('throttle:120,1');
+Route::get('/screenings/{screening}/seats', [CinemaController::class, 'seats'])->middleware('throttle:120,1');
+Route::post('/screenings/{screening}/holds', [CinemaController::class, 'hold'])
+    ->middleware(['auth:sanctum', 'throttle:20,1']);
+Route::delete('/screenings/{screening}/holds/{holdToken}', [CinemaController::class, 'release'])
+    ->middleware(['auth:sanctum', 'throttle:20,1']);
+Route::post('/screenings/{screening}/review', [CinemaController::class, 'review'])
     ->middleware(['auth:sanctum', 'throttle:20,1']);
 
 Route::get('/user', function (Request $request) {
