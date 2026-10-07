@@ -200,8 +200,8 @@ function ContentSection({
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  top: { minHeight: 42, justifyContent: "center" },
-  logo: { height: 42, width: 140 },
+  top: { alignItems: "center", minHeight: 38, justifyContent: "center" },
+  logo: { height: 34, width: 112 },
   greeting: {
     color: colors.foreground,
     fontSize: typography.title,

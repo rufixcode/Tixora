@@ -83,7 +83,7 @@ export function EventActions({ event }: { event: TixEvent }) {
       />
       {event.category === "Movies" ? (
         <PrimaryButton
-          label="Choose cinema and seats"
+          label="View available showtimes"
           onPress={() =>
             router.push(`/cinema/${event.slug}/screenings` as never)
           }

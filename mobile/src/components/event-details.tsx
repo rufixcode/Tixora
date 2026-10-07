@@ -1,13 +1,7 @@
 import { EventActions } from "@/components/event-actions";
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { BackButton } from "@/components/back-button";
 import { AppScreen } from "@/components/screen";
 import { formatPrice, type TixEvent } from "@/lib/events";
 import { colors, radius, spacing, typography } from "@/theme/tokens";
@@ -27,9 +21,7 @@ export function EventDetails({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable accessibilityRole="button" onPress={onBack}>
-          <Text style={styles.back}>← Back</Text>
-        </Pressable>
+        <BackButton label="Back" onPress={onBack} />
         <View
           style={[
             styles.artwork,
@@ -95,11 +87,6 @@ function Meta({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  back: {
-    color: colors.primary,
-    fontSize: typography.label,
-    fontWeight: "800",
-  },
   artwork: {
     alignItems: "center",
     borderRadius: radius.lg,
