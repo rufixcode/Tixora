@@ -28,7 +28,8 @@ export const Route = createFileRoute("/events/")({
       { property: "og:title", content: "Browse Live Events & Tickets | Tixora" },
       {
         property: "og:description",
-        content: "Filter concerts, movies, festivals and theater events and book tickets in seconds.",
+        content:
+          "Filter concerts, movies, festivals and theater events and book tickets in seconds.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -41,6 +42,7 @@ function EventsPage() {
   const { q, category } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const [results, setResults] = useState<TixEvent[]>([]);
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -48,12 +50,18 @@ function EventsPage() {
 
     async function load() {
       setIsLoading(true);
+      setError("");
 
       try {
         const data = await fetchEvents({ q, category });
 
         if (active) {
           setResults(data);
+        }
+      } catch {
+        if (active) {
+          setError("Could not load events. Refresh to try again.");
+          setResults([]);
         }
       } finally {
         if (active) {
@@ -72,6 +80,11 @@ function EventsPage() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
+      {error && (
+        <p role="alert" className="mx-auto mt-6 max-w-6xl text-destructive">
+          {error}
+        </p>
+      )}
 
       <main className="mx-auto max-w-6xl px-4 py-10">
         <p className="eyebrow text-primary">Event catalog</p>
@@ -117,7 +130,9 @@ function EventsPage() {
         </div>
 
         <p className="mt-6 text-sm text-muted-foreground">
-          {isLoading ? "Loading events..." : `${results.length} ${results.length === 1 ? "event" : "events"} available`}
+          {isLoading
+            ? "Loading events..."
+            : `${results.length} ${results.length === 1 ? "event" : "events"} available`}
         </p>
 
         {!isLoading ? (
@@ -131,7 +146,9 @@ function EventsPage() {
         {!isLoading && results.length === 0 ? (
           <div className="mt-10 rounded-2xl border border-dashed border-border p-12 text-center">
             <p className="font-semibold">No events matched that search.</p>
-            <p className="mt-1 text-sm text-muted-foreground">Try a different artist, venue or city.</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Try a different artist, venue or city.
+            </p>
           </div>
         ) : null}
       </main>

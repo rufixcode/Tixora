@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\FavoriteController;
+use App\Http\Controllers\Api\SettingsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -32,3 +34,24 @@ Route::post('/screenings/{screening}/review', [CinemaController::class, 'review'
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
+
+Route::middleware(['auth:sanctum', 'throttle:30,1'])->group(function () {
+
+    Route::get('/bookings', [BookingController::class, 'index']);
+    Route::post('/bookings/{booking}/checkout', [BookingController::class, 'checkout']);
+    Route::post('/bookings/{booking}/cancel', [BookingController::class, 'cancel']);
+    Route::post('/screenings/{screening}/bookings', [BookingController::class, 'cinema']);
+    Route::get('/favorites', [FavoriteController::class, 'index']);
+    Route::put('/favorites/{slug}', [FavoriteController::class, 'store']);
+    Route::delete('/favorites/{slug}', [FavoriteController::class, 'destroy']);
+    Route::get('/admin/events', [AdminController::class, 'index']);
+    Route::get('/admin/overview', [AdminController::class, 'overview']);
+    Route::get('/admin/bookings', [AdminController::class, 'bookings']);
+    Route::get('/admin/customers', [AdminController::class, 'customers']);
+    Route::post('/admin/events', [AdminController::class, 'store']);
+    Route::patch('/admin/events/{type}/{id}', [AdminController::class, 'update']);
+    Route::delete('/admin/events/{type}/{id}', [AdminController::class, 'destroy']);
+});
+Route::post('/payments/paymongo/webhook', [BookingController::class, 'webhook']);
+
+Route::patch('/settings/credentials', [SettingsController::class, 'credentials'])->middleware(['auth:sanctum', 'throttle:5,1']);

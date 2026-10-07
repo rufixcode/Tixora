@@ -14,6 +14,7 @@ use Illuminate\Validation\ValidationException;
 class CinemaController extends Controller
 {
     private const MAX_SEATS_PER_ORDER = 8;
+
     private const HOLD_MINUTES = 10;
 
     public function screenings(string $slug): JsonResponse
@@ -54,15 +55,17 @@ class CinemaController extends Controller
 
         try {
             $result = DB::transaction(function () use ($request, $screening, $validated) {
+                DB::table('users')->where('id', $request->user()->id)->lockForUpdate()->first();
                 $this->removeExpiredHolds();
                 $screeningRecord = $this->findScreening($screening, true);
                 if (! $screeningRecord) {
                     abort(404, 'Screening not found.');
                 }
-                if ($screeningRecord->status !== 'scheduled') {
+                if (($screeningRecord->status !== 'scheduled' || now()->gte($screeningRecord->start_time))) {
                     throw ValidationException::withMessages(['screening' => ['This screening is unavailable.']]);
                 }
 
+                abort_if(DB::table('seat_holds')->where('user_id', $request->user()->id)->where('expires_at', '>', now())->count() + count($validated['seat_ids']) > self::MAX_SEATS_PER_ORDER, 422, 'Release your existing seats before holding more.');
                 $seatIds = $validated['seat_ids'];
                 $seats = DB::table('seats')->where('screen_id', $screeningRecord->screen_id)
                     ->whereIn('id', $seatIds)->lockForUpdate()->orderBy('row_label')->orderBy('seat_number')->get();
@@ -70,7 +73,7 @@ class CinemaController extends Controller
                     throw ValidationException::withMessages(['seat_ids' => ['One or more seats do not belong to this screening.']]);
                 }
 
-                $unavailable = DB::table('ticket_seats')->where('screening_id', $screening)->whereIn('seat_id', $seatIds)->exists()
+                $unavailable = DB::table('booking_seats')->where('screening_id', $screening)->whereIn('seat_id', $seatIds)->exists() || DB::table('ticket_seats')->where('screening_id', $screening)->whereIn('seat_id', $seatIds)->exists()
                     || DB::table('seat_holds')->where('screening_id', $screening)->whereIn('seat_id', $seatIds)->where('expires_at', '>', now())->exists();
                 if ($unavailable) {
                     throw ValidationException::withMessages(['seat_ids' => ['One or more selected seats are no longer available.']]);
@@ -106,6 +109,7 @@ class CinemaController extends Controller
         if (! $deleted) {
             return response()->json(['message' => 'Active hold not found.'], 404);
         }
+
         return response()->json(['message' => 'Seat hold released.'])->header('Cache-Control', 'no-store');
     }
 
@@ -115,7 +119,7 @@ class CinemaController extends Controller
         $result = DB::transaction(function () use ($request, $screening, $validated) {
             $this->removeExpiredHolds();
             $screeningRecord = $this->findScreening($screening, true);
-            if (! $screeningRecord || $screeningRecord->status !== 'scheduled') {
+            if (! $screeningRecord || ($screeningRecord->status !== 'scheduled' || now()->gte($screeningRecord->start_time))) {
                 throw ValidationException::withMessages(['screening' => ['This screening is unavailable.']]);
             }
             $seats = DB::table('seat_holds as h')->join('seats as seat', 'seat.id', '=', 'h.seat_id')
@@ -126,6 +130,7 @@ class CinemaController extends Controller
             if ($seats->isEmpty()) {
                 throw ValidationException::withMessages(['hold_token' => ['This seat hold has expired or is invalid.']]);
             }
+
             return ['screening' => $screeningRecord, 'seats' => $seats];
         });
 
@@ -152,15 +157,20 @@ class CinemaController extends Controller
     private function findScreening(int $id, bool $lock = false): ?object
     {
         $query = $this->screeningQuery()->where('s.id', $id);
-        if ($lock) $query->lockForUpdate();
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
         return $query->first();
     }
 
     private function screeningPayload(object $screening): array
     {
-        $available = $screening->status === 'scheduled';
+        $available = ($screening->status === 'scheduled' && now()->lt($screening->start_time));
         $unavailableSeatIds = DB::table('ticket_seats')->where('screening_id', $screening->id)->pluck('seat_id')
+            ->merge(DB::table('booking_seats')->where('screening_id', $screening->id)->pluck('seat_id'))
             ->merge(DB::table('seat_holds')->where('screening_id', $screening->id)->where('expires_at', '>', now())->pluck('seat_id'))->unique();
+
         return [
             'id' => $screening->id, 'cinema_id' => $screening->cinema_id, 'cinema_name' => $screening->cinema_name, 'mall_name' => $screening->mall_name, 'city' => $screening->city,
             'screen_name' => $screening->screen_name, 'start_time' => Carbon::parse($screening->start_time)->toIso8601String(),
@@ -173,14 +183,16 @@ class CinemaController extends Controller
     private function seatInventoryPayload(object $screening): array
     {
         $this->removeExpiredHolds();
-        $occupied = array_flip(DB::table('ticket_seats')->where('screening_id', $screening->id)->pluck('seat_id')->all());
+        $occupied = array_flip(DB::table('ticket_seats')->where('screening_id', $screening->id)->pluck('seat_id')->merge(DB::table('booking_seats')->where('screening_id', $screening->id)->pluck('seat_id'))->all());
         $held = array_flip(DB::table('seat_holds')->where('screening_id', $screening->id)->where('expires_at', '>', now())->pluck('seat_id')->all());
-        $status = $screening->status === 'scheduled' ? 'available' : 'unavailable';
+        $status = ($screening->status === 'scheduled' && now()->lt($screening->start_time)) ? 'available' : 'unavailable';
         $seats = DB::table('seats')->where('screen_id', $screening->screen_id)->orderBy('row_label')->orderBy('seat_number')->get()
             ->map(function ($seat) use ($occupied, $held, $status) {
                 $seatStatus = isset($occupied[$seat->id]) ? 'occupied' : (isset($held[$seat->id]) ? 'held' : $status);
+
                 return $this->seatPayload($seat, $seatStatus);
             });
+
         return [
             'screening' => $this->screeningPayload($screening), 'max_seats_per_order' => self::MAX_SEATS_PER_ORDER, 'seats' => $seats,
         ];

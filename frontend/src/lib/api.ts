@@ -41,7 +41,7 @@ export async function apiRequest<T>(endpoint: string, options: RequestInit = {})
     : null;
   if (!response.ok) {
     const message =
-      response.status >= 500
+      response.status >= 500 && response.status !== 503
         ? "The service is temporarily unavailable. Please try again later."
         : typeof body?.message === "string"
           ? body.message

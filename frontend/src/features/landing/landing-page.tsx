@@ -11,9 +11,9 @@ import { Input } from "@/components/ui/input";
 import { CATEGORIES, fetchEvents, type TixEvent } from "@/lib/events";
 
 const PERKS = [
-  { icon: Zap, title: "Instant checkout", copy: "Pick a tier, confirm, done — under 30 seconds." },
-  { icon: Smartphone, title: "Mobile entry", copy: "Your pass lives on your phone. No printing." },
-  { icon: ShieldCheck, title: "Fees up front", copy: "Service fees shown before you pay. Always." },
+  { icon: Zap, title: "Instant checkout", copy: "Choose tickets and try PayMongo test checkout." },
+  { icon: Smartphone, title: "Mobile entry", copy: "View verified test tickets in My bookings." },
+  { icon: ShieldCheck, title: "Fees up front", copy: "Review your order total before checkout." },
 ];
 
 export function LandingPage() {
@@ -38,9 +38,7 @@ export function LandingPage() {
 
         const featuredEvent = featuredData[0] ?? trendingData[0] ?? null;
         setFeatured(featuredEvent);
-        setTrending(
-          trendingData.filter((event) => event.slug !== featuredEvent?.slug).slice(0, 4),
-        );
+        setTrending(trendingData.filter((event) => event.slug !== featuredEvent?.slug).slice(0, 4));
       } catch {
         if (active) {
           setFeatured(null);
@@ -77,7 +75,7 @@ export function LandingPage() {
           />
           <div className="absolute inset-0 bg-ink/75" />
           <div className="relative mx-auto max-w-6xl px-4 py-24 sm:py-32">
-            <p className="eyebrow text-teal">Official ticketing · 40+ cities</p>
+            <p className="eyebrow text-teal">Tixora · Sandbox preview</p>
             <h1 className="mt-3 max-w-3xl text-4xl font-extrabold leading-[1.05] text-primary-foreground sm:text-6xl">
               Unlock live events near you
             </h1>
@@ -127,7 +125,9 @@ export function LandingPage() {
               <h2 className="mt-1 text-3xl font-bold">Trending this month</h2>
             </div>
             <Button asChild variant="outline">
-              <Link to="/events" search={{ q: undefined, category: undefined }}>View all events</Link>
+              <Link to="/events" search={{ q: undefined, category: undefined }}>
+                View all events
+              </Link>
             </Button>
           </div>
 
@@ -165,7 +165,9 @@ export function LandingPage() {
                   <p className="mt-1 flex items-center gap-1.5 text-sm text-primary-foreground/80">
                     <CalendarDays className="size-4" /> {featured.date} · {featured.time}
                   </p>
-                  <p className="mt-3 max-w-lg text-sm text-primary-foreground/70">{featured.subtitle}</p>
+                  <p className="mt-3 max-w-lg text-sm text-primary-foreground/70">
+                    {featured.subtitle}
+                  </p>
                 </div>
                 <Button asChild size="lg" className="shrink-0">
                   <Link to="/events/$slug" params={{ slug: featured.slug }}>
@@ -181,7 +183,10 @@ export function LandingPage() {
         <section className="border-t border-border bg-secondary/40">
           <div className="mx-auto grid max-w-6xl gap-6 px-4 py-14 sm:grid-cols-3">
             {PERKS.map((perk) => (
-              <div key={perk.title} className="rounded-2xl border border-border bg-card p-6 shadow-card">
+              <div
+                key={perk.title}
+                className="rounded-2xl border border-border bg-card p-6 shadow-card"
+              >
                 <span className="inline-flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                   <perk.icon className="size-5" />
                 </span>

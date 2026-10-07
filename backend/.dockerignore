@@ -12,3 +12,8 @@ bootstrap/cache/*.php
 database/*.sqlite*
 tests
 public/hot
+
+# Local credentials, uploads and database backups must never enter image layers.
+storage/app/private/**
+storage/app/public/**
+storage/framework/testing/**

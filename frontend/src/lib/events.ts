@@ -14,6 +14,11 @@ export type TicketTier = {
 export type EventCategory = "Concerts" | "Movies" | "Events";
 
 export type TixEvent = {
+  status?: string;
+  admin_subtitle?: string;
+  resource_type: "movie" | "concert" | "event";
+  resource_id: number;
+  starts_at?: string | null;
   booking_available?: boolean;
   slug: string;
   title: string;

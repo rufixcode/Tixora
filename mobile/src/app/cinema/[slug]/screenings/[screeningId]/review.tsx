@@ -1,23 +1,177 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-
-import { AppScreen } from '@/components/screen';
-import { LoadingState, MessageState } from '@/components/state-view';
-import { releaseSeatHold, reviewSeatHold, type BookingReview } from '@/lib/cinema';
-import { formatPrice } from '@/lib/events';
-import { useAuth } from '@/providers/auth-provider';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
-
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { ScrollView, Text, View } from "react-native";
+import { AppScreen } from "@/components/screen";
+import { PrimaryButton } from "@/components/primary-button";
+import { LoadingState, MessageState } from "@/components/state-view";
+import {
+  releaseSeatHold,
+  reviewSeatHold,
+  type BookingReview,
+} from "@/lib/cinema";
+import { apiRequest } from "@/lib/api";
+import { openCheckout, requestKey } from "@/lib/checkout";
+import { formatPrice } from "@/lib/events";
+import { useAuth } from "@/providers/auth-provider";
+import { colors } from "@/theme/tokens";
 export default function BookingReviewScreen() {
-  const router = useRouter(); const { slug, screeningId, hold } = useLocalSearchParams<{ slug: string; screeningId: string; hold: string }>(); const { session } = useAuth();
-  const [review, setReview] = useState<BookingReview | null>(null); const [error, setError] = useState(false); const [releasing, setReleasing] = useState(false);
-  const load = useCallback(async () => { if (!screeningId || !hold || !session) return; setError(false); try { setReview(await reviewSeatHold(screeningId, hold, session.token)); } catch { setError(true); } }, [hold, screeningId, session]);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { void load(); }, [load]);
-  async function cancelHold() { if (!session || !hold || releasing) return; setReleasing(true); try { await releaseSeatHold(screeningId, hold, session.token); router.replace(`/cinema/${slug}/screenings/${screeningId}/seats` as never); } finally { setReleasing(false); } }
-  if (!review && !error) return <AppScreen><LoadingState label="Validating your selected seats…" /></AppScreen>;
-  if (error || !review) return <AppScreen><MessageState title="Your seat hold is no longer active" detail="Seats may have been released or availability changed. Please select seats again." actionLabel="Choose seats" onAction={() => router.replace(`/cinema/${slug}/screenings/${screeningId}/seats` as never)} /></AppScreen>;
-  return <AppScreen><ScrollView contentContainerStyle={styles.content}><Text style={styles.eyebrow}>REVIEW YOUR SELECTION</Text><Text style={styles.title}>Seats held for you</Text><Text style={styles.copy}>Your selection has been revalidated by Tixora. Booking confirmation is the next phase and is not available yet.</Text><View style={styles.card}><Text style={styles.movie}>{review.screening.cinema_name} · {review.screening.screen_name}</Text><Text style={styles.meta}>{new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(review.screening.start_time))}</Text><Text style={styles.seats}>{review.seats.map((seat) => `${seat.row_label}${seat.seat_number}`).join(', ')}</Text><Text style={styles.total}>{formatPrice(review.total_amount)}</Text></View><Pressable accessibilityRole="button" disabled={releasing} onPress={() => void cancelHold()} style={styles.cancel}><Text style={styles.cancelText}>{releasing ? 'Releasing seats…' : 'Release selected seats'}</Text></Pressable></ScrollView></AppScreen>;
+  const router = useRouter();
+  const { slug, screeningId, hold } = useLocalSearchParams<{
+    slug: string;
+    screeningId: string;
+    hold: string;
+  }>();
+  const { session } = useAuth();
+  const [review, setReview] = useState<BookingReview | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const key = useRef<string | null>(null);
+  useEffect(() => {
+    if (!session || !screeningId || !hold) return;
+    let active = true;
+    reviewSeatHold(screeningId, hold, session.token)
+      .then((data) => {
+        if (active) {
+          setReview(data);
+          setError("");
+        }
+      })
+      .catch(() => {
+        if (active)
+          setError(
+            "This hold has expired or is unavailable. Choose your seats again.",
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [session, screeningId, hold]);
+  async function pay() {
+    if (!session || busy) return;
+    setBusy(true);
+    setError("");
+    key.current ??= requestKey();
+    try {
+      const r = await apiRequest<{ checkout_url: string }>(
+        `/screenings/${screeningId}/bookings`,
+        {
+          method: "POST",
+          token: session.token,
+          body: JSON.stringify({ hold_token: hold, request_key: key.current }),
+        },
+      );
+      await openCheckout(r.checkout_url);
+      router.replace("/bookings" as never);
+    } catch (e) {
+      setError(
+        `${(e as Error).message} Check My bookings to resume any pending order.`,
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function release() {
+    if (!session || busy) return;
+    setBusy(true);
+    try {
+      await releaseSeatHold(screeningId, hold, session.token);
+      router.replace(
+        `/cinema/${slug}/screenings/${screeningId}/seats` as never,
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (!session)
+    return (
+      <AppScreen>
+        <MessageState
+          title="Sign in to continue"
+          detail="Your seats and bookings belong to your account."
+          actionLabel="Sign in"
+          onAction={() => router.push("/login" as never)}
+        />
+      </AppScreen>
+    );
+  if (!review && !error)
+    return (
+      <AppScreen>
+        <LoadingState label="Validating your selected seats..." />
+      </AppScreen>
+    );
+  return (
+    <AppScreen>
+      <ScrollView
+        contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 16 }}
+      >
+        <Text style={{ fontSize: 28, fontWeight: "800" }}>
+          Review your seats
+        </Text>
+        <Text>
+          PayMongo sandbox only. Tickets appear in My bookings after payment
+          verification.
+        </Text>
+        {review && (
+          <View
+            style={{
+              backgroundColor: colors.primarySoft,
+              padding: 20,
+              borderRadius: 16,
+              gap: 12,
+            }}
+          >
+            <Text style={{ fontSize: 20, fontWeight: "800" }}>
+              {review.screening.cinema_name} - {review.screening.screen_name}
+            </Text>
+            <Text>
+              {new Date(review.screening.start_time).toLocaleString()}
+            </Text>
+            <Text>
+              {review.seats
+                .map((s) => `${s.row_label}${s.seat_number}`)
+                .join(", ")}
+            </Text>
+            <Text
+              style={{ fontSize: 24, fontWeight: "800", color: colors.primary }}
+            >
+              {formatPrice(review.total_amount)}
+            </Text>
+          </View>
+        )}
+        {!!error && (
+          <Text accessibilityRole="alert" style={{ color: colors.destructive }}>
+            {error}
+          </Text>
+        )}
+        {review && (
+          <>
+            <PrimaryButton
+              label={busy ? "Please wait..." : "Continue to sandbox payment"}
+              disabled={busy}
+              onPress={() => void pay()}
+            />
+            <PrimaryButton
+              label="Release seats"
+              disabled={busy}
+              onPress={() => void release()}
+            />
+          </>
+        )}
+        <PrimaryButton
+          label="My bookings"
+          onPress={() => router.push("/bookings" as never)}
+        />
+        <PrimaryButton
+          label="Choose seats again"
+          onPress={() =>
+            router.replace(
+              `/cinema/${slug}/screenings/${screeningId}/seats` as never,
+            )
+          }
+        />
+      </ScrollView>
+    </AppScreen>
+  );
 }
-const styles = StyleSheet.create({ content: { padding: spacing.lg, paddingBottom: spacing.xxl }, eyebrow: { color: colors.primary, fontSize: typography.eyebrow, fontWeight: '800', letterSpacing: 1.2 }, title: { color: colors.foreground, fontSize: typography.display, fontWeight: '800', marginTop: spacing.sm }, copy: { color: colors.mutedForeground, fontSize: typography.body, lineHeight: 23, marginTop: spacing.sm }, card: { backgroundColor: colors.secondary, borderRadius: radius.md, marginTop: spacing.xl, padding: spacing.lg }, movie: { color: colors.foreground, fontSize: typography.body, fontWeight: '800' }, meta: { color: colors.mutedForeground, fontSize: typography.label, marginTop: spacing.sm }, seats: { color: colors.foreground, fontSize: typography.label, fontWeight: '700', marginTop: spacing.lg }, total: { color: colors.primary, fontSize: typography.title, fontWeight: '800', marginTop: spacing.md }, cancel: { alignItems: 'center', borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, justifyContent: 'center', marginTop: spacing.lg, minHeight: 52 }, cancelText: { color: colors.foreground, fontSize: typography.body, fontWeight: '800' } });
