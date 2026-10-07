@@ -24,6 +24,10 @@ services:
   backend:
     build: ./backend
     environment:
+      PAYMONGO_SECRET_KEY: ${PAYMONGO_SECRET_KEY:-}
+      PAYMONGO_WEBHOOK_SECRET: ${PAYMONGO_WEBHOOK_SECRET:-}
+      PAYMONGO_RETURN_URL: ${PAYMONGO_RETURN_URL:-}
+      PAYMONGO_PAYMENT_METHODS: ${PAYMONGO_PAYMENT_METHODS:-card}
       APP_NAME: Tixora
       APP_ENV: production
       APP_DEBUG: "false"

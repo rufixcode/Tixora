@@ -44,6 +44,8 @@ class SettingsTest extends TestCase
         $this->actingAs($user, 'web')->deleteJson('/web/account', ['password' => 'wrong', 'confirmation' => 'DELETE'])->assertUnprocessable();
         $this->deleteJson('/web/account', ['password' => 'long-password-123', 'confirmation' => 'no'])->assertUnprocessable();
         $this->assertDatabaseHas('users', ['id' => $user->id]);
+        $this->deleteJson('/web/account', ['password' => 'long-password-123', 'confirmation' => 'DELETE'])->assertUnprocessable();
+        DB::table('bookings')->where('user_id', $user->id)->update(['status' => 'cancelled']);
         $this->deleteJson('/web/account', ['password' => 'long-password-123', 'confirmation' => 'DELETE'])->assertOk();
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
         $this->assertDatabaseHas('users', ['id' => $other->id]);

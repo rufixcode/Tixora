@@ -45,10 +45,10 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'is_admin' => 'boolean',
             'preferences' => 'array',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
 }
-

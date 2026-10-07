@@ -1,3 +1,4 @@
+import { ChatLauncher } from "@/components/chat-launcher";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -130,8 +131,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      {/* Required: nested routes render here. Removing <Outlet /><ChatLauncher /> breaks all child routes. */}
       <Outlet />
+      <ChatLauncher />
     </QueryClientProvider>
   );
 }

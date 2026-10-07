@@ -13,13 +13,13 @@ const NAV = [
 ] as const;
 
 export function SiteHeader() {
-  const [user, setUser] = useState<{ name: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; is_admin?: boolean } | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [authError, setAuthError] = useState("");
   useEffect(() => {
     let active = true;
     const refresh = () => {
-      apiRequest<{ user: { name: string } }>("/me")
+      apiRequest<{ user: { name: string; is_admin?: boolean } }>("/me")
         .then((data) => {
           if (active) setUser(data.user);
         })
@@ -84,11 +84,21 @@ export function SiteHeader() {
           ) : null}
           {user ? (
             <>
-              <span className="hidden text-sm sm:inline">{user.name}</span>
-              <Button asChild variant="ghost"><Link to="/settings">Settings</Link></Button>
-              <Button variant="outline" disabled={signingOut} onClick={logout}>
-                {signingOut ? "Signing out..." : "Sign out"}
-              </Button>
+              <details className="relative">
+                <summary className="cursor-pointer rounded-lg border px-3 py-2 text-sm">
+                  My account
+                </summary>
+                <div className="absolute right-0 top-12 flex w-52 flex-col gap-3 rounded-xl border bg-background p-4 shadow-lg">
+                  <span className="truncate font-semibold">{user.name}</span>
+                  <a href="/bookings">Bookings</a>
+                  <a href="/favorites">Saved events</a>
+                  <Link to="/settings">Settings</Link>
+                  {user.is_admin && <Link to="/admin">Admin dashboard</Link>}
+                  <Button variant="outline" disabled={signingOut} onClick={logout}>
+                    {signingOut ? "Signing out..." : "Sign out"}
+                  </Button>
+                </div>
+              </details>
             </>
           ) : (
             <>
@@ -101,7 +111,7 @@ export function SiteHeader() {
             </>
           )}
 
-          <Button asChild className="gap-2">
+          <Button asChild className="hidden gap-2 sm:inline-flex">
             <Link to="/events" search={{ q: undefined, category: undefined }}>
               <Ticket className="size-4" />
               Book tickets

@@ -1,3 +1,5 @@
+import concertFallback from "@/assets/event-concert.jpg";
+import movieFallback from "@/assets/event-movies.jpg";
 import { Link } from "@tanstack/react-router";
 import { CalendarDays, MapPin, Star } from "lucide-react";
 
@@ -19,7 +21,7 @@ export function EventCard({ event }: { event: TixEvent }) {
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-card transition-all hover:-translate-y-0.5 hover:shadow-glow">
       <div className="relative aspect-[16/10] overflow-hidden">
         <img
-          src={event.image}
+          src={event.image || (isMovie ? movieFallback : concertFallback)}
           alt={event.title}
           width={1024}
           height={640}

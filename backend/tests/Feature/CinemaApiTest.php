@@ -45,6 +45,20 @@ class CinemaApiTest extends TestCase
             ->assertJsonPath('seats.0.status', 'available');
     }
 
+    public function test_combined_active_holds_cannot_exceed_eight_seats(): void
+    {
+        $fixture = $this->cinemaFixture();
+        Sanctum::actingAs(User::factory()->create());
+        $screen = DB::table('seats')->where('id', $fixture['seatOne'])->value('screen_id');
+        $extra = [];
+        for ($number = 3; $number <= 9; $number++) {
+            $extra[] = DB::table('seats')->insertGetId(['screen_id' => $screen, 'row_label' => 'A', 'seat_number' => $number, 'seat_type' => 'regular', 'created_at' => now(), 'updated_at' => now()]);
+        }
+        $this->postJson('/api/screenings/'.$fixture['screening'].'/holds', ['seat_ids' => $extra])->assertCreated();
+        $this->postJson('/api/screenings/'.$fixture['screening'].'/holds', ['seat_ids' => [$fixture['seatOne'], $fixture['seatTwo']]])->assertUnprocessable();
+        $this->assertDatabaseCount('seat_holds', 7);
+    }
+
     private function cinemaFixture(): array
     {
         $now = now();
@@ -52,9 +66,10 @@ class CinemaApiTest extends TestCase
         $cinema = DB::table('cinemas')->insertGetId(['mall_id' => $mall, 'name' => 'Demo Cinema', 'created_at' => $now, 'updated_at' => $now]);
         $screen = DB::table('screens')->insertGetId(['cinema_id' => $cinema, 'name' => 'Screen 1', 'capacity' => 2, 'created_at' => $now, 'updated_at' => $now]);
         $movie = DB::table('movies')->insertGetId(['title' => 'Demo Movie', 'duration_minutes' => 100, 'release_date' => '2026-10-07', 'status' => 'now_showing', 'created_at' => $now, 'updated_at' => $now]);
-        $screening = DB::table('screenings')->insertGetId(['movie_id' => $movie, 'screen_id' => $screen, 'start_time' => '2026-10-08 19:00:00', 'end_time' => '2026-10-08 20:40:00', 'ticket_price' => 250, 'status' => 'scheduled', 'created_at' => $now, 'updated_at' => $now]);
+        $screening = DB::table('screenings')->insertGetId(['movie_id' => $movie, 'screen_id' => $screen, 'start_time' => now()->addDay(), 'end_time' => now()->addDay()->addHours(2), 'ticket_price' => 250, 'status' => 'scheduled', 'created_at' => $now, 'updated_at' => $now]);
         $seatOne = DB::table('seats')->insertGetId(['screen_id' => $screen, 'row_label' => 'A', 'seat_number' => 1, 'seat_type' => 'regular', 'created_at' => $now, 'updated_at' => $now]);
         $seatTwo = DB::table('seats')->insertGetId(['screen_id' => $screen, 'row_label' => 'A', 'seat_number' => 2, 'seat_type' => 'regular', 'created_at' => $now, 'updated_at' => $now]);
+
         return compact('screening', 'seatOne', 'seatTwo');
     }
 }

@@ -21,14 +21,8 @@ export function LoginForm() {
     e.preventDefault();
     setError(null);
 
-    if (email.trim().toLowerCase() === "admin" && password === "adminadmin") {
-      sessionStorage.setItem("tixora-admin", "true");
-      void navigate({ to: "/admin" });
-      return;
-    }
-
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      setError("Enter a valid email address or the admin username.");
+      setError("Enter a valid email address.");
       return;
     }
     if (password.length < 6) {
@@ -38,12 +32,15 @@ export function LoginForm() {
 
     try {
       setIsSubmitting(true);
-      await apiRequest<{ message: string; user: { name: string; email: string } }>("/login", {
+      const result = await apiRequest<{
+        message: string;
+        user: { name: string; email: string; is_admin: boolean };
+      }>("/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
       window.dispatchEvent(new Event("auth-changed"));
-      void navigate({ to: "/" });
+      void navigate({ to: result.user.is_admin ? "/admin" : "/" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in right now.");
     } finally {
@@ -64,7 +61,7 @@ export function LoginForm() {
 
           <form onSubmit={submit} className="mt-6 space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email or username</Label>
+              <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -73,7 +70,7 @@ export function LoginForm() {
                   autoComplete="username"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@email.com or admin"
+                  placeholder="you@email.com"
                   className="h-11 pl-9"
                   required
                 />

@@ -13,7 +13,7 @@ class EventController extends Controller
     public function index(Request $request)
     {
         $request->validate(['q' => ['nullable', 'string', 'max:200'], 'category' => ['nullable', 'in:Movies,Concerts,Events'], 'limit' => ['nullable', 'integer', 'min:1', 'max:100']]);
-        $events = $this->allEvents();
+        $events = $this->catalog();
 
         if ($request->filled('category')) {
             $events = $events->filter(fn ($event) => $event['category'] === $request->query('category'));
@@ -59,7 +59,7 @@ class EventController extends Controller
 
     public function show(string $slug)
     {
-        $event = $this->allEvents()->first(fn ($item) => $item['slug'] === $slug);
+        $event = $this->catalog()->first(fn ($item) => $item['slug'] === $slug);
 
         if (! $event) {
             return response()->json([
@@ -70,28 +70,28 @@ class EventController extends Controller
         return response()->json($event);
     }
 
-    private function allEvents()
+    public function catalog(bool $includeArchived = false)
     {
         $events = collect();
 
-        foreach ($this->movies() as $movie) {
+        foreach ($this->movies($includeArchived) as $movie) {
             $events->push($movie);
         }
 
-        foreach ($this->concerts() as $concert) {
+        foreach ($this->concerts($includeArchived) as $concert) {
             $events->push($concert);
         }
 
-        foreach ($this->genericEvents() as $entry) {
+        foreach ($this->genericEvents($includeArchived) as $entry) {
             $events->push($entry);
         }
 
-        return $events->map(fn ($event) => [...$event, 'booking_available' => false])->values();
+        return $events->values();
     }
 
-    private function movies(): array
+    private function movies(bool $includeArchived): array
     {
-        $movies = DB::table('movies')->orderBy('title')->get();
+        $movies = DB::table('movies')->when(! $includeArchived, fn ($q) => $q->where('status', '!=', 'cancelled'))->orderBy('title')->get();
         $collection = [];
 
         foreach ($movies as $movie) {
@@ -99,7 +99,7 @@ class EventController extends Controller
                 ->join('screens as sc', 'sc.id', '=', 's.screen_id')
                 ->join('cinemas as c', 'c.id', '=', 'sc.cinema_id')
                 ->join('malls as m', 'm.id', '=', 'c.mall_id')
-                ->where('s.movie_id', $movie->id)
+                ->where('s.movie_id', $movie->id)->when(! $includeArchived, fn ($q) => $q->where('s.status', 'scheduled')->where('s.start_time', '>', now()))
                 ->select([
                     's.id as screening_id',
                     's.start_time',
@@ -111,7 +111,7 @@ class EventController extends Controller
                     'm.city',
                     'sc.capacity',
                 ])
-                ->orderBy('s.start_time')
+                ->orderByRaw("CASE WHEN s.status = 'scheduled' THEN 0 ELSE 1 END")->orderBy('s.start_time')
                 ->get();
 
             $screenings = $screenings->map(function ($screening) {
@@ -125,6 +125,8 @@ class EventController extends Controller
 
             $collection[] = [
                 'slug' => Str::slug($movie->title),
+                'starts_at' => $firstScreening?->start_time, 'resource_type' => 'movie', 'resource_id' => $movie->id, 'booking_available' => $firstScreening !== null,
+                'status' => $movie->status, 'admin_subtitle' => '',
                 'title' => $movie->title,
                 'subtitle' => $movie->description ?: 'Now showing in cinemas near you.',
                 'category' => 'Movies',
@@ -132,7 +134,7 @@ class EventController extends Controller
                 'city' => $firstScreening ? ($firstScreening->city ?? 'Davao City') : 'Davao City',
                 'date' => $firstScreening ? Carbon::parse($firstScreening->start_time)->format('M d, Y') : Carbon::parse($movie->release_date)->format('M d, Y'),
                 'time' => $firstScreening ? Carbon::parse($firstScreening->start_time)->format('g:i A') : '',
-                'image' => null,
+                'image' => $movie->poster_url,
                 'badge' => $movie->status === 'now_showing' ? 'HOT' : 'NEW',
                 'rating' => null,
                 'reviews' => null,
@@ -156,7 +158,7 @@ class EventController extends Controller
         return $collection;
     }
 
-    private function concerts(): array
+    private function concerts(bool $includeArchived): array
     {
         $concerts = DB::table('concerts as c')
             ->join('venues as v', 'v.id', '=', 'c.venue_id')
@@ -165,14 +167,14 @@ class EventController extends Controller
                 'c.id',
                 'c.name',
                 'c.artist',
-                'c.description',
+                'c.description', 'c.poster_url',
                 'c.start_time',
                 'c.end_time',
                 'c.status',
                 'v.name as venue_name',
                 'm.city',
             ])
-            ->orderBy('c.start_time')
+            ->when(! $includeArchived, fn ($q) => $q->where('c.status', '!=', 'cancelled'))->orderBy('c.start_time')
             ->get();
 
         $collection = [];
@@ -185,6 +187,8 @@ class EventController extends Controller
 
             $collection[] = [
                 'slug' => Str::slug($concert->name),
+                'starts_at' => $concert->start_time, 'resource_type' => 'concert', 'resource_id' => $concert->id, 'booking_available' => $concert->status !== 'cancelled' && now()->lt($concert->start_time),
+                'status' => $concert->status, 'admin_subtitle' => $concert->artist ?? '',
                 'title' => $concert->name,
                 'subtitle' => $concert->artist ? 'Featuring '.$concert->artist : 'Live music experience',
                 'category' => 'Concerts',
@@ -192,7 +196,7 @@ class EventController extends Controller
                 'city' => $concert->city,
                 'date' => Carbon::parse($concert->start_time)->format('M d, Y'),
                 'time' => Carbon::parse($concert->start_time)->format('g:i A'),
-                'image' => null,
+                'image' => $concert->poster_url,
                 'badge' => 'NEW',
                 'rating' => null,
                 'reviews' => null,
@@ -214,7 +218,7 @@ class EventController extends Controller
         return $collection;
     }
 
-    private function genericEvents(): array
+    private function genericEvents(bool $includeArchived): array
     {
         $events = DB::table('events as e')
             ->join('venues as v', 'v.id', '=', 'e.venue_id')
@@ -222,14 +226,14 @@ class EventController extends Controller
             ->select([
                 'e.id',
                 'e.name',
-                'e.description',
+                'e.description', 'e.poster_url',
                 'e.start_time',
                 'e.end_time',
                 'e.status',
                 'v.name as venue_name',
                 'm.city',
             ])
-            ->orderBy('e.start_time')
+            ->when(! $includeArchived, fn ($q) => $q->where('e.status', '!=', 'cancelled'))->orderBy('e.start_time')
             ->get();
 
         $collection = [];
@@ -242,6 +246,8 @@ class EventController extends Controller
 
             $collection[] = [
                 'slug' => Str::slug($event->name),
+                'starts_at' => $event->start_time, 'resource_type' => 'event', 'resource_id' => $event->id, 'booking_available' => $event->status !== 'cancelled' && now()->lt($event->start_time),
+                'status' => $event->status, 'admin_subtitle' => '',
                 'title' => $event->name,
                 'subtitle' => $event->description ?: 'Community events and experiences',
                 'category' => 'Events',
@@ -249,7 +255,7 @@ class EventController extends Controller
                 'city' => $event->city,
                 'date' => Carbon::parse($event->start_time)->format('M d, Y'),
                 'time' => Carbon::parse($event->start_time)->format('g:i A'),
-                'image' => null,
+                'image' => $event->poster_url,
                 'badge' => 'NEW',
                 'rating' => null,
                 'reviews' => null,
