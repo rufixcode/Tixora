@@ -13,7 +13,7 @@ export function ChatLauncher() {
         style={[s.launcher, { bottom: Math.max(insets.bottom, 12) + 64 }]}
         onPress={() => setOpen(true)}
       >
-        <Text style={s.white}>Chat</Text>
+        <Text style={s.white}>AI Assist</Text>
       </Pressable>
       <Modal
         visible={open}

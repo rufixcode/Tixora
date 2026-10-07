@@ -84,17 +84,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.top}>
-          <BrandLogo />
-          <Pressable
-            accessibilityLabel="Open account"
-            accessibilityRole="button"
-            onPress={() => router.push("/account" as never)}
-            style={styles.avatar}
-          >
-            <Text style={styles.avatarText}>
-              {firstName.slice(0, 1).toUpperCase()}
-            </Text>
-          </Pressable>
+          <BrandLogo style={styles.logo} />
         </View>
         <Text style={styles.greeting}>Hello, {firstName}.</Text>
         <Text style={styles.subhead}>Your next night out starts here.</Text>
@@ -210,20 +200,8 @@ function ContentSection({
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
-  top: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  avatar: {
-    alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.pill,
-    height: 42,
-    justifyContent: "center",
-    width: 42,
-  },
-  avatarText: { color: colors.primary, fontWeight: "800" },
+  top: { minHeight: 42, justifyContent: "center" },
+  logo: { height: 42, width: 140 },
   greeting: {
     color: colors.foreground,
     fontSize: typography.title,
