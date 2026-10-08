@@ -18,6 +18,7 @@ export function Checkout({ event }: { event: TixEvent }) {
   const [screening, setScreening] = useState("");
   const [seats, setSeats] = useState<Seat[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
+  const [maxSeats, setMaxSeats] = useState(8);
   const [hold, setHold] = useState<Hold | null>(null);
   const [tier, setTier] = useState(event.tiers[0]?.id ?? "");
   const [quantity, setQuantity] = useState(1);
@@ -48,10 +49,11 @@ export function Checkout({ event }: { event: TixEvent }) {
     let active = true;
     setLoading(true);
     setError("");
-    apiRequest<{ seats: Seat[] }>(`/screenings/${screening}/seats`)
+    apiRequest<{ seats: Seat[]; max_seats_per_order: number }>(`/screenings/${screening}/seats`)
       .then((r) => {
         if (active) {
           setSeats(r.seats);
+          setMaxSeats(r.max_seats_per_order ?? 8);
           setSelected([]);
         }
       })
@@ -128,6 +130,10 @@ export function Checkout({ event }: { event: TixEvent }) {
   const price = movie
     ? (screenings.find((s) => String(s.id) === screening)?.ticket_price ?? 0)
     : (event.tiers.find((t) => t.id === tier)?.price ?? 0);
+  const activeScreening = screenings.find((s) => String(s.id) === screening);
+  const selectedSeats = seats.filter((seat) => selected.includes(seat.id));
+  const rows = new Map<string, Seat[]>();
+  seats.forEach((seat) => rows.set(seat.row_label, [...(rows.get(seat.row_label) ?? []), seat]));
   return (
     <section className="rounded-2xl border bg-card p-6 shadow-card">
       <h2 className="text-xl font-bold">
@@ -151,6 +157,8 @@ export function Checkout({ event }: { event: TixEvent }) {
               disabled={busy || !!hold}
               onChange={(e) => {
                 setScreening(e.target.value);
+                setSeats([]);
+                setSelected([]);
                 key.current = null;
               }}
             >
@@ -165,31 +173,99 @@ export function Checkout({ event }: { event: TixEvent }) {
           </label>
           {!loading && screening && !hold && (
             <>
-              <div className="my-4 rounded bg-muted p-2 text-center text-xs">SCREEN</div>
-              <div className="flex max-h-80 flex-wrap gap-2 overflow-auto">
-                {seats.map((s) => (
-                  <button
-                    key={s.id}
-                    aria-pressed={selected.includes(s.id)}
-                    disabled={
-                      busy ||
-                      s.status !== "available" ||
-                      (!selected.includes(s.id) && selected.length >= 8)
-                    }
-                    onClick={() =>
-                      setSelected((ids) =>
-                        ids.includes(s.id) ? ids.filter((id) => id !== s.id) : [...ids, s.id],
-                      )
-                    }
-                    className={`h-10 w-12 rounded border text-xs disabled:opacity-30 ${selected.includes(s.id) ? "bg-primary text-white" : "bg-background"}`}
-                  >
-                    {s.row_label}
-                    {s.seat_number}
-                  </button>
+              <div className="mt-7">
+                <h3 className="text-2xl font-extrabold">Choose your seats</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {activeScreening?.cinema_name} · {activeScreening?.screen_name}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {activeScreening &&
+                    new Intl.DateTimeFormat("en-PH", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    }).format(new Date(activeScreening.start_time))}
+                </p>
+              </div>
+              <div className="mt-7 rounded-b-[20px] bg-[#8F1527] py-2 text-center text-[11px] font-extrabold tracking-[2px] text-white">
+                SCREEN
+              </div>
+              <div className="mt-5 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                {[
+                  ["Available", "bg-[#087443]"],
+                  ["Selected", "bg-[#C61F37]"],
+                  ["Unavailable", "bg-muted"],
+                ].map(([label, color]) => (
+                  <span key={label} className="flex items-center gap-1">
+                    <span className={`size-3.5 rounded ${color}`} />
+                    {label}
+                  </span>
                 ))}
               </div>
-              <Button className="mt-4" disabled={busy || !selected.length} onClick={reserve}>
-                Hold {selected.length} seats
+              <div
+                className="mt-5 overflow-x-auto pb-2"
+                role="group"
+                aria-label="Choose your seats"
+              >
+                <div className="mx-auto flex w-max min-w-0 flex-col gap-2">
+                  {[...rows.entries()].map(([row, rowSeats]) => (
+                    <div key={row} className="flex items-center gap-2">
+                      <span className="w-4 shrink-0 text-right text-xs font-extrabold text-muted-foreground">
+                        {row}
+                      </span>
+                      <div className="flex gap-[5px]">
+                        {rowSeats.map((s) => (
+                          <button
+                            type="button"
+                            key={s.id}
+                            aria-label={`${s.row_label}${s.seat_number}, ${s.status !== "available" ? s.status : selected.includes(s.id) ? "selected" : "available"}`}
+                            aria-pressed={selected.includes(s.id)}
+                            disabled={
+                              busy ||
+                              s.status !== "available" ||
+                              (!selected.includes(s.id) && selected.length >= maxSeats)
+                            }
+                            onClick={() =>
+                              setSelected((ids) =>
+                                ids.includes(s.id)
+                                  ? ids.filter((id) => id !== s.id)
+                                  : [...ids, s.id],
+                              )
+                            }
+                            className={`flex size-[27px] shrink-0 items-center justify-center rounded-[5px] text-[10px] font-extrabold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed ${s.status !== "available" ? "bg-muted text-muted-foreground" : selected.includes(s.id) ? "bg-[#C61F37] text-white" : "bg-[#BCE6D2] text-[#17131A] enabled:hover:bg-[#9DD6BA]"}`}
+                          >
+                            {s.seat_number}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div
+                className="mt-7 rounded-[14px] bg-secondary p-3"
+                role="status"
+                aria-live="polite"
+              >
+                <p className="text-sm font-extrabold">
+                  {selected.length
+                    ? `${selected.length} seat${selected.length === 1 ? "" : "s"} selected`
+                    : "No seats selected"}
+                </p>
+                <p className="mt-1 text-[13px] leading-[18px] text-muted-foreground">
+                  {selected.length
+                    ? selectedSeats.map((seat) => `${seat.row_label}${seat.seat_number}`).join(", ")
+                    : `Select up to ${maxSeats} available seats.`}
+                </p>
+                <p className="mt-3 text-[22px] font-extrabold text-primary">
+                  {formatPrice(price * selected.length)}
+                </p>
+              </div>
+              <Button
+                className="mt-5 min-h-[52px] w-full rounded-[14px] text-base font-extrabold"
+                disabled={busy || !selected.length}
+                onClick={reserve}
+              >
+                {busy ? "Checking seats…" : "Review selected seats"}
               </Button>
             </>
           )}
@@ -239,25 +315,29 @@ export function Checkout({ event }: { event: TixEvent }) {
           </label>
         </div>
       )}
-      <p className="mt-5 text-lg font-bold">
-        Total: {formatPrice(hold?.total_amount ?? price * (movie ? selected.length : quantity))}
-      </p>
+      {(!movie || hold) && (
+        <p className="mt-5 text-lg font-bold">
+          Total: {formatPrice(hold?.total_amount ?? price * (movie ? selected.length : quantity))}
+        </p>
+      )}
       {error && (
         <p role="alert" className="mt-3 text-sm text-destructive">
           {error}
         </p>
       )}
-      <Button
-        className="mt-5 w-full"
-        disabled={
-          busy ||
-          loading ||
-          (movie ? !hold : !event.booking_available || !tier || quantity < 1 || quantity > 8)
-        }
-        onClick={pay}
-      >
-        {busy ? "Please wait..." : "Continue to payment"}
-      </Button>
+      {(!movie || hold) && (
+        <Button
+          className="mt-5 w-full"
+          disabled={
+            busy ||
+            loading ||
+            (movie ? !hold : !event.booking_available || !tier || quantity < 1 || quantity > 8)
+          }
+          onClick={pay}
+        >
+          {busy ? "Please wait..." : "Continue to payment"}
+        </Button>
+      )}
       <a className="mt-3 block text-center text-sm text-primary" href="/bookings">
         My bookings and payment status
       </a>
