@@ -12,7 +12,6 @@ import { colors, radius, spacing, typography } from "@/theme/tokens";
 
 type HomeData = {
   featured: TixEvent | null;
-  trending: TixEvent[];
   movies: TixEvent[];
   concerts: TixEvent[];
   events: TixEvent[];
@@ -34,16 +33,14 @@ export default function HomeScreen() {
     setLoading(true);
     setError(false);
     try {
-      const [featured, trending, movies, concerts, events] = await Promise.all([
+      const [featured, movies, concerts, events] = await Promise.all([
         fetchEvents({ featured: true, limit: 1 }),
-        fetchEvents({ limit: 4 }),
         fetchEvents({ category: "Movies" }),
         fetchEvents({ category: "Concerts" }),
         fetchEvents({ category: "Events" }),
       ]);
       setData({
         featured: featured[0] ?? null,
-        trending,
         movies: movies.filter((event) => event.featured),
         concerts,
         events,
@@ -70,7 +67,7 @@ export default function HomeScreen() {
       <AppScreen>
         <MessageState
           title="Couldn’t load Tixora"
-          detail="Check that the Laravel API is running and your mobile API URL is configured."
+          detail="Please check your connection and try again."
           actionLabel="Try again"
           onAction={() => void load()}
         />
@@ -125,13 +122,6 @@ export default function HomeScreen() {
             </Pressable>
           </View>
         )}
-        <ContentSection
-          title="Trending this month"
-          onViewAll={() => router.push("/discover" as never)}
-          items={data.trending}
-          onPress={goToEvent}
-          empty="No trending events are available yet."
-        />
         <ContentSection
           title="Now Showing movies"
           onViewAll={() => router.push("/cinema" as never)}

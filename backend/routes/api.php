@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AssistantController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\FavoriteController;
+use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\SettingsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -45,13 +47,20 @@ Route::middleware(['auth:sanctum', 'throttle:30,1'])->group(function () {
     Route::put('/favorites/{slug}', [FavoriteController::class, 'store']);
     Route::delete('/favorites/{slug}', [FavoriteController::class, 'destroy']);
     Route::get('/admin/events', [AdminController::class, 'index']);
+    Route::post('/admin/images', [MediaController::class, 'store'])->middleware('throttle:10,1');
     Route::get('/admin/overview', [AdminController::class, 'overview']);
     Route::get('/admin/bookings', [AdminController::class, 'bookings']);
     Route::get('/admin/customers', [AdminController::class, 'customers']);
     Route::post('/admin/events', [AdminController::class, 'store']);
+    Route::post('/admin/events/{type}/{id}/tiers', [AdminController::class, 'saveTier']);
+    Route::patch('/admin/events/{type}/{id}/tiers/{tier}', [AdminController::class, 'saveTier']);
+    Route::delete('/admin/events/{type}/{id}/tiers/{tier}', [AdminController::class, 'deleteTier']);
     Route::patch('/admin/events/{type}/{id}', [AdminController::class, 'update']);
     Route::delete('/admin/events/{type}/{id}', [AdminController::class, 'destroy']);
 });
 Route::post('/payments/paymongo/webhook', [BookingController::class, 'webhook']);
 
 Route::patch('/settings/credentials', [SettingsController::class, 'credentials'])->middleware(['auth:sanctum', 'throttle:5,1']);
+
+Route::post('/assistant/chat', [AssistantController::class, 'chat'])->middleware('throttle:10,1');
+Route::get('/media/{filename}', [MediaController::class, 'show'])->where('filename', '[a-f0-9-]+\\.(jpg|png|webp)')->middleware('throttle:120,1');

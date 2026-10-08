@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AssistantController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\FavoriteController;
+use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +15,7 @@ Route::get('/', fn () => response()->json(['service' => 'Tixora API']));
 
 // Web routes always receive session and CSRF middleware.
 Route::prefix('web')->name('web.')->group(function () {
+    Route::post('/assistant/chat', [AssistantController::class, 'chat'])->middleware('throttle:10,1');
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1')->name('register');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1')->name('login');
     Route::get('/events', [EventController::class, 'index'])->middleware('throttle:120,1');
@@ -30,10 +33,14 @@ Route::prefix('web')->name('web.')->group(function () {
             Route::put('/favorites/{slug}', [FavoriteController::class, 'store']);
             Route::delete('/favorites/{slug}', [FavoriteController::class, 'destroy']);
             Route::get('/admin/events', [AdminController::class, 'index']);
+            Route::post('/admin/images', [MediaController::class, 'store'])->middleware('throttle:10,1');
             Route::get('/admin/overview', [AdminController::class, 'overview']);
             Route::get('/admin/bookings', [AdminController::class, 'bookings']);
             Route::get('/admin/customers', [AdminController::class, 'customers']);
             Route::post('/admin/events', [AdminController::class, 'store']);
+            Route::post('/admin/events/{type}/{id}/tiers', [AdminController::class, 'saveTier']);
+            Route::patch('/admin/events/{type}/{id}/tiers/{tier}', [AdminController::class, 'saveTier']);
+            Route::delete('/admin/events/{type}/{id}/tiers/{tier}', [AdminController::class, 'deleteTier']);
             Route::patch('/admin/events/{type}/{id}', [AdminController::class, 'update']);
             Route::delete('/admin/events/{type}/{id}', [AdminController::class, 'destroy']);
 

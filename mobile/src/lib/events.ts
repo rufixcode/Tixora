@@ -9,6 +9,7 @@ export type TicketTier = {
   remaining: number;
 };
 export type TixEvent = {
+  poster_path?: string | null;
   status?: string;
   admin_subtitle?: string;
   resource_type: "movie" | "concert" | "event";

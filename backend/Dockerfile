@@ -4,6 +4,7 @@ RUN apk add --no-cache icu-libs libzip oniguruma \
     && docker-php-ext-install pdo_mysql mbstring intl zip opcache \
     && apk del .build-deps
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+COPY uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 WORKDIR /var/www/html
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --prefer-dist --no-interaction --no-scripts --no-autoloader

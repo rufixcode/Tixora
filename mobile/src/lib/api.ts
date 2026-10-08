@@ -33,7 +33,13 @@ export async function apiRequest<T>(
   const body = response.headers
     .get("content-type")
     ?.includes("application/json")
-    ? await response.json()
+    ? JSON.parse(await response.text(), (key, value) =>
+        key === "image" &&
+        typeof value === "string" &&
+        value.startsWith("/api/media/")
+          ? apiBaseUrl.replace(/\/api$/, "") + value
+          : value,
+      )
     : null;
   if (!response.ok) {
     const message =

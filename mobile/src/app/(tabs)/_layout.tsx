@@ -7,9 +7,10 @@ import { colors } from "@/theme/tokens";
 
 const icons = { home: "⌂", discover: "⌕", account: "◉" };
 export default function TabsLayout() {
-  const { status } = useAuth();
+  const { status, session } = useAuth();
   if (status === "loading") return <LoadingState label="Opening Tixora..." />;
   if (status !== "authenticated") return <Redirect href={"/login" as never} />;
+  if (session?.user.is_admin) return <Redirect href="/admin" />;
   return (
     <Tabs
       screenOptions={({ route }) => ({

@@ -110,8 +110,8 @@ export default function BookingReviewScreen() {
           Review your seats
         </Text>
         <Text>
-          PayMongo sandbox only. Tickets appear in My bookings after payment
-          verification.
+          Test mode · No real charges. Tickets appear in My bookings after
+          payment verification.
         </Text>
         {review && (
           <View
@@ -148,7 +148,7 @@ export default function BookingReviewScreen() {
         {review && (
           <>
             <PrimaryButton
-              label={busy ? "Please wait..." : "Continue to sandbox payment"}
+              label={busy ? "Please wait..." : "Continue to payment"}
               disabled={busy}
               onPress={() => void pay()}
             />

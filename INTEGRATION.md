@@ -2,7 +2,7 @@
 
 ## Connected features
 
-Web and Expo mobile use the same Laravel catalog, accounts, favorites, settings, cinema inventory and booking records. Both include event checkout, cinema seat holds, booking history, payment resume/cancellation and an authorized catalog editor. Floating chat controls are placeholders only: no AI service is connected and no chat messages are collected.
+Web and Expo mobile use the same Laravel catalog, accounts, favorites, settings, cinema inventory and booking records. Both include event checkout, cinema seat holds, booking history, payment resume/cancellation and an authorized catalog editor. Chat is connected to a private local Qwen service through Laravel, with a built-in help fallback. See AI/README.md.
 
 Browser authentication uses HttpOnly session cookies and CSRF. Native authentication uses expiring tokens in SecureStore. The Expo web preview keeps tokens in memory only; use the React website for the deployed browser experience. Admin privileges are checked by Laravel, not a browser flag. Prices, seat ownership, availability and payment confirmation are validated on the server.
 
@@ -43,13 +43,17 @@ Provider reference: https://docs.paymongo.com/docs/payment-channels-hosted-check
 
 ## Admin dashboard
 
-Sign in with an administrator account, then open `/admin` on the website or Account → Admin dashboard on mobile. The dashboard has Overview, Events & concerts, Bookings and Customers sections.
+Sign in with an administrator account to open the dedicated admin area on web or mobile. It contains Listings, Customers and Admin account; customer navigation, overview and payment panels are excluded.
 
 - Publish and edit concerts, general events and movie screenings with titles, concert artists, descriptions, HTTPS poster URLs, venue/city, UTC schedule, price and capacity.
 - Search and filter the catalog. Archive/delete removes a listing from both public apps but retains its database history. Select archived listings, edit and save to republish.
-- Review paginated bookings, filter payment status and search by reference, event or email. Review the paginated customer directory and overview totals.
+- Search the paginated customer directory and update your own admin login details.
 - Listings with booking history cannot be edited or archived. Booking/payment records and customer accounts are read-only in the dashboard; refunds and account moderation are not implemented. Administrator grants/revocations use the trusted `tixora:admin` console command, not a public registration field.
 
 To grant access, register your own account, then run `php artisan tixora:admin your-email@example.com` from backend. Sign out and back in to refresh the mobile role. No shared admin password is included.
 
 For a fresh local demo account, `php artisan tixora:admin-create admin@tixora.local` generates a random password in `backend/storage/app/private/admin-login.txt`. It refuses to overwrite existing accounts or credential files and is disabled outside local/testing. Keep that file private, change the email/password through Settings → Change login details, then delete the temporary file. Changing login details requires the current password and signs out all sessions/tokens.
+
+## 8 October update
+
+See [Admin and image guide](docs/ADMIN-GUIDE.md) for direct poster uploads and ticket-tier management, and [AI setup](AI/README.md) for the working chatbot and deployment requirements. The model service is separate from Laravel. Native image-picker behavior still requires a physical-device test.

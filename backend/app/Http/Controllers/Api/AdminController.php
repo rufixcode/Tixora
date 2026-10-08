@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
@@ -103,7 +104,12 @@ class AdminController extends Controller
 
     private function save(Request $r, ?string $type = null, ?int $id = null)
     {
-        $v = $r->validate(['title' => ['required', 'string', 'max:200'], 'category' => ['required', Rule::in(['Movies', 'Concerts', 'Events'])], 'subtitle' => ['nullable', 'string', 'max:255'], 'about' => ['required', 'string', 'max:10000'], 'venue' => ['required', 'string', 'max:200'], 'city' => ['required', 'string', 'max:100'], 'date' => ['required', 'date'], 'time' => ['required', 'date_format:H:i'], 'image' => ['nullable', 'url:https', 'max:2000'], 'price' => ['required', 'numeric', 'min:1', 'max:100000'], 'tickets' => ['required', 'integer', 'min:1', 'max:200']]);
+        $v = $r->validate(['title' => ['required', 'string', 'max:200'], 'category' => ['required', Rule::in(['Movies', 'Concerts', 'Events'])], 'subtitle' => ['nullable', 'string', 'max:255'], 'about' => ['required', 'string', 'max:10000'], 'venue' => ['required', 'string', 'max:200'], 'city' => ['required', 'string', 'max:100'], 'date' => ['required', 'date'], 'time' => ['required', 'date_format:H:i'], 'image' => ['nullable', 'string', 'max:2000', function ($attribute, $value, $fail) {
+            $uploaded = preg_match('~^/api/media/([a-f0-9-]{36}\.(?:jpg|png|webp))$~D', $value, $matches) && Storage::disk('public')->exists('posters/'.$matches[1]);
+            if (! $uploaded && (! filter_var($value, FILTER_VALIDATE_URL) || parse_url($value, PHP_URL_SCHEME) !== 'https')) {
+                $fail('Use an uploaded poster or a valid HTTPS image URL.');
+            }
+        }], 'price' => ['required', 'numeric', 'min:1', 'max:100000'], 'tickets' => ['required', 'integer', 'min:1', 'max:200']]);
         $kind = match ($v['category']) {
             'Movies' => 'movie','Concerts' => 'concert',default => 'event'
         };
@@ -159,6 +165,47 @@ class AdminController extends Controller
         });
 
         return response()->json(['message' => 'Event saved.']);
+    }
+
+    public function saveTier(Request $r, string $type, int $id, ?int $tier = null)
+    {
+        $this->authorizeAdmin($r);
+        abort_unless(in_array($type, ['event', 'concert']), 422, 'Movie prices are managed through the screening editor.');
+        $v = $r->validate(['name' => ['required', 'string', 'max:100'], 'description' => ['nullable', 'string', 'max:500'], 'price' => ['required', 'numeric', 'min:1', 'max:100000'], 'quantity' => ['required', 'integer', 'min:1', 'max:200']]);
+        DB::transaction(function () use ($type, $id, $tier, $v) {
+            abort_unless(DB::table($this->table($type))->where('id', $id)->lockForUpdate()->first(), 404);
+            $this->ensureEditable($type, $id);
+            $tiers = DB::table('ticket_types')->where($type.'_id', $id);
+            if ($tier) {
+                abort_unless((clone $tiers)->where('id', $tier)->exists(), 404);
+            }
+            abort_if(! $tier && (clone $tiers)->count() >= 10, 422, 'Limit of 10 ticket tiers per event.');
+            abort_if((clone $tiers)->when($tier, fn ($q) => $q->where('id', '!=', $tier))->where('name', $v['name'])->exists(), 422, 'A tier with this name already exists.');
+            $values = [...$v, 'available_quantity' => $v['quantity'], 'updated_at' => now()];
+            if ($tier) {
+                $tiers->where('id', $tier)->update($values);
+            } else {
+                DB::table('ticket_types')->insert([...$values, $type.'_id' => $id, 'created_at' => now()]);
+            }
+        });
+
+        return response()->json(['message' => 'Ticket tier saved.']);
+    }
+
+    public function deleteTier(Request $r, string $type, int $id, int $tier)
+    {
+        $this->authorizeAdmin($r);
+        abort_unless(in_array($type, ['event', 'concert']), 404);
+        DB::transaction(function () use ($type, $id, $tier) {
+            abort_unless(DB::table($this->table($type))->where('id', $id)->lockForUpdate()->first(), 404);
+            $this->ensureEditable($type, $id);
+            $tiers = DB::table('ticket_types')->where($type.'_id', $id);
+            abort_unless((clone $tiers)->where('id', $tier)->exists(), 404);
+            abort_if((clone $tiers)->count() <= 1, 422, 'Keep at least one ticket tier.');
+            $tiers->where('id', $tier)->delete();
+        });
+
+        return response()->json(['message' => 'Ticket tier removed.']);
     }
 
     public function destroy(Request $r, string $type, int $id)
