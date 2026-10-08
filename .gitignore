@@ -29,3 +29,9 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+# Local AI runtime, model weights and private desktop memory
+AI/**/.venv/
+AI/**/__pycache__/
+AI/models/
+AI/memory/
+AI/*.log

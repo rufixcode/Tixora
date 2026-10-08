@@ -1,4 +1,7 @@
-import { AdminReports } from "@/components/admin-reports";
+import { TierEditor } from "@/components/tier-editor";
+import { PosterUpload } from "@/components/poster-upload";
+import { LoginSettings } from "@/components/login-settings";
+import { CustomerDirectory } from "@/components/customer-directory";
 import { useCallback, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
@@ -30,10 +33,12 @@ const blank = {
 };
 export default function Admin() {
   const router = useRouter();
-  const { session } = useAuth();
-  const [section, setSection] = useState<
-    "overview" | "events" | "bookings" | "customers"
-  >("overview");
+  const { session, signOut } = useAuth();
+  const [section, setSection] = useState<"events" | "customers" | "account">(
+    "events",
+  );
+  const [showForm, setShowForm] = useState(false);
+  const [tierTarget, setTierTarget] = useState<TixEvent | null>(null);
   const [search, setSearch] = useState("");
   const [archive, setArchive] = useState(false);
   const [items, setItems] = useState<TixEvent[]>([]);
@@ -41,6 +46,7 @@ export default function Admin() {
   const [editing, setEditing] = useState<TixEvent | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const load = useCallback(async () => {
     if (!session) return;
@@ -75,7 +81,8 @@ export default function Admin() {
       );
       setForm(blank);
       setEditing(null);
-      setMessage("Event saved to the shared catalog.");
+      setShowForm(false);
+      setMessage("Listing saved.");
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -107,6 +114,8 @@ export default function Admin() {
     }
   }
   function edit(e: TixEvent) {
+    setShowForm(true);
+    setTierTarget(null);
     setEditing(e);
     const start = e.starts_at ?? "";
     setForm({
@@ -118,19 +127,40 @@ export default function Admin() {
       city: e.city,
       date: start.slice(0, 10),
       time: start.slice(11, 16),
-      image: e.image ?? "",
+      image: e.poster_path ?? e.image ?? "",
       price: String(e.tiers[0]?.price ?? 0),
       tickets: String(e.tiers[0]?.remaining ?? 0),
     });
   }
+  const visibleItems = items.filter(
+    (e) =>
+      (e.status === "cancelled") === archive &&
+      `${e.title} ${e.category} ${e.venue}`
+        .toLowerCase()
+        .includes(search.toLowerCase()),
+  );
   return (
     <AppScreen>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 14 }}
       >
-        <PrimaryButton label="Back" onPress={() => router.back()} />
-        <Text style={{ fontSize: 28, fontWeight: "800" }}>Admin dashboard</Text>
+        <PrimaryButton
+          label="Sign out"
+          disabled={busy || uploading}
+          onPress={async () => {
+            try {
+              await signOut();
+            } catch {
+              // The auth provider clears the local session even if logout cannot reach the server.
+            } finally {
+              router.replace("/login");
+            }
+          }}
+        />
+        <Text style={{ fontSize: 28, fontWeight: "800" }}>
+          Tixora · Administration
+        </Text>
         {!!error && (
           <Text accessibilityRole="alert" style={{ color: colors.destructive }}>
             {error}
@@ -142,199 +172,259 @@ export default function Admin() {
         )}
         {session?.user.is_admin && (
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {(["overview", "events", "bookings", "customers"] as const).map(
-              (s) => (
-                <Pressable
-                  accessibilityRole="button"
-                  key={s}
-                  onPress={() => setSection(s)}
-                  style={{
-                    padding: 12,
-                    borderRadius: 10,
-                    backgroundColor:
-                      section === s ? colors.primarySoft : colors.muted,
-                  }}
-                >
-                  <Text>
-                    {s === "events"
-                      ? "Events & concerts"
-                      : s.charAt(0).toUpperCase() + s.slice(1)}
-                  </Text>
-                </Pressable>
-              ),
-            )}
+            {(["events", "customers", "account"] as const).map((s) => (
+              <Pressable
+                accessibilityRole="button"
+                key={s}
+                disabled={busy || uploading}
+                onPress={() => setSection(s)}
+                style={{
+                  padding: 12,
+                  borderRadius: 10,
+                  backgroundColor:
+                    section === s ? colors.primarySoft : colors.muted,
+                }}
+              >
+                <Text>
+                  {s === "events"
+                    ? "Listings"
+                    : s === "account"
+                      ? "Admin account"
+                      : "Customers"}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         )}
-        {session?.user.is_admin && section !== "events" && (
-          <AdminReports key={section} section={section} token={session.token} />
+        {session?.user.is_admin && section === "customers" && (
+          <CustomerDirectory token={session.token} />
+        )}
+        {session?.user.is_admin && section === "account" && (
+          <LoginSettings email={session.user.email} />
         )}
         {session?.user.is_admin && section === "events" && (
           <>
-            <Text>
-              Movie entries create a two-hour screening. Capacity is limited to
-              200 seats. Booked events cannot be edited.
-            </Text>
-            <Text style={{ fontSize: 20, fontWeight: "800" }}>
-              {editing ? "Edit event" : "New event"}
-            </Text>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {["Concerts", "Movies", "Events"].map((c) => (
-                <Pressable
-                  key={c}
-                  disabled={!!editing}
-                  onPress={() => setForm({ ...form, category: c })}
-                  style={{
-                    padding: 12,
-                    backgroundColor:
-                      form.category === c ? colors.primarySoft : colors.muted,
-                    borderRadius: 8,
-                  }}
-                >
-                  <Text>{c}</Text>
-                </Pressable>
-              ))}
-            </View>
-            {(Object.keys(blank) as (keyof typeof blank)[])
-              .filter((k) => k !== "category")
-              .map((k) => (
-                <View key={k}>
-                  <Text>
-                    {k === "date"
-                      ? "Date (YYYY-MM-DD)"
-                      : k === "time"
-                        ? "Time (HH:MM, UTC)"
-                        : k === "tickets"
-                          ? "Capacity / lowest-priced tier"
-                          : k === "subtitle"
-                            ? "Artist (concerts only)"
-                            : k}
-                  </Text>
-                  <TextInput
-                    accessibilityLabel={k}
-                    value={form[k]}
-                    onChangeText={(v) => setForm({ ...form, [k]: v })}
-                    keyboardType={
-                      ["price", "tickets"].includes(k) ? "numeric" : "default"
-                    }
-                    style={{
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      borderRadius: 10,
-                      padding: 12,
-                      marginTop: 4,
-                    }}
-                  />
-                </View>
-              ))}
-            <PrimaryButton
-              label={
-                busy
-                  ? "Saving..."
-                  : editing
-                    ? "Save changes & publish"
-                    : "Publish event"
-              }
-              disabled={busy}
-              onPress={() => void save()}
-            />
-            {editing && (
+            {!showForm && !tierTarget && (
               <PrimaryButton
-                label="Cancel edit"
+                label="Add listing"
                 onPress={() => {
-                  setEditing(null);
                   setForm(blank);
+                  setEditing(null);
+                  setShowForm(true);
                 }}
               />
             )}
-            <Text style={{ fontSize: 20, fontWeight: "800" }}>Catalog</Text>
-            <TextInput
-              accessibilityLabel="Search events"
-              placeholder="Search title, category or venue"
-              value={search}
-              onChangeText={setSearch}
-              style={{
-                padding: 12,
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderRadius: 10,
-              }}
-            />
-            <PrimaryButton
-              label={
-                archive ? "Show active listings" : "Show archived listings"
-              }
-              onPress={() => setArchive((v) => !v)}
-            />
-            <PrimaryButton
-              label="Refresh catalog"
-              disabled={busy}
-              onPress={() => void load()}
-            />
-            {items.filter(
-              (e) =>
-                (e.status === "cancelled") === archive &&
-                `${e.title} ${e.category} ${e.venue}`
-                  .toLowerCase()
-                  .includes(search.toLowerCase()),
-            ).length === 0 && (
-              <Text>
-                No matching listings. Use the form above to publish an event.
-              </Text>
+            {showForm && (
+              <>
+                <Text>
+                  Movie entries create a two-hour screening. Capacity is limited
+                  to 200 seats. Booked events cannot be edited.
+                </Text>
+                <Text style={{ fontSize: 20, fontWeight: "800" }}>
+                  {editing ? "Edit event" : "New event"}
+                </Text>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {["Concerts", "Movies", "Events"].map((c) => (
+                    <Pressable
+                      key={c}
+                      disabled={!!editing}
+                      onPress={() => setForm({ ...form, category: c })}
+                      style={{
+                        padding: 12,
+                        backgroundColor:
+                          form.category === c
+                            ? colors.primarySoft
+                            : colors.muted,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <Text>{c}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {(Object.keys(blank) as (keyof typeof blank)[])
+                  .filter(
+                    (k) =>
+                      k !== "category" &&
+                      k !== "image" &&
+                      (k !== "subtitle" || form.category === "Concerts"),
+                  )
+                  .map((k) => (
+                    <View key={k}>
+                      <Text>
+                        {k === "date"
+                          ? "Date (YYYY-MM-DD)"
+                          : k === "time"
+                            ? "Time (HH:MM, UTC)"
+                            : k === "tickets"
+                              ? "Capacity / lowest-priced tier"
+                              : k === "subtitle"
+                                ? "Artist"
+                                : k === "about"
+                                  ? "Description"
+                                  : k === "price"
+                                    ? "Ticket price (PHP)"
+                                    : k.charAt(0).toUpperCase() + k.slice(1)}
+                      </Text>
+                      <TextInput
+                        multiline={k === "about"}
+                        numberOfLines={k === "about" ? 4 : 1}
+                        accessibilityLabel={k}
+                        value={form[k]}
+                        onChangeText={(v) => setForm({ ...form, [k]: v })}
+                        keyboardType={
+                          ["price", "tickets"].includes(k)
+                            ? "numeric"
+                            : "default"
+                        }
+                        style={{
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                          borderRadius: 10,
+                          padding: 12,
+                          marginTop: 4,
+                        }}
+                      />
+                    </View>
+                  ))}
+                <PosterUpload
+                  value={form.image}
+                  token={session.token}
+                  onChange={(image) => setForm((prev) => ({ ...prev, image }))}
+                  onBusy={setUploading}
+                />
+                <PrimaryButton
+                  label={
+                    busy
+                      ? "Saving..."
+                      : editing
+                        ? "Save changes & publish"
+                        : "Publish event"
+                  }
+                  disabled={busy || uploading}
+                  onPress={() => void save()}
+                />
+                {
+                  <PrimaryButton
+                    label="Cancel"
+                    disabled={busy || uploading}
+                    onPress={() => {
+                      setEditing(null);
+                      setForm(blank);
+                      setShowForm(false);
+                    }}
+                  />
+                }
+              </>
             )}
-            {items
-              .filter(
-                (e) =>
-                  (e.status === "cancelled") === archive &&
-                  `${e.title} ${e.category} ${e.venue}`
-                    .toLowerCase()
-                    .includes(search.toLowerCase()),
-              )
-              .map((e) => (
-                <View
-                  key={`${e.resource_type}:${e.resource_id}`}
+            {!showForm && (
+              <>
+                <Text style={{ fontSize: 20, fontWeight: "800" }}>
+                  Listings
+                </Text>
+                {tierTarget && (
+                  <>
+                    <PrimaryButton
+                      label="Close ticket tiers"
+                      onPress={() => setTierTarget(null)}
+                    />
+                    <TierEditor
+                      key={`${tierTarget.resource_type}:${tierTarget.resource_id}`}
+                      event={
+                        items.find(
+                          (e) =>
+                            e.resource_type === tierTarget.resource_type &&
+                            e.resource_id === tierTarget.resource_id,
+                        ) ?? tierTarget
+                      }
+                      token={session.token}
+                      onSaved={load}
+                    />
+                  </>
+                )}
+                <TextInput
+                  accessibilityLabel="Search events"
+                  placeholder="Search title, category or venue"
+                  value={search}
+                  onChangeText={setSearch}
                   style={{
-                    padding: 16,
+                    padding: 12,
                     borderWidth: 1,
                     borderColor: colors.border,
-                    borderRadius: 14,
+                    borderRadius: 10,
                   }}
-                >
-                  <Text style={{ fontSize: 18, fontWeight: "800" }}>
-                    {e.title}
-                  </Text>
+                />
+                <PrimaryButton
+                  label={
+                    archive ? "Show active listings" : "Show archived listings"
+                  }
+                  onPress={() => setArchive((v) => !v)}
+                />
+                <PrimaryButton
+                  label="Refresh catalog"
+                  disabled={busy || uploading}
+                  onPress={() => void load()}
+                />
+                {visibleItems.length === 0 && (
                   <Text>
-                    {e.category} - {e.date} -{" "}
-                    {e.status === "cancelled"
-                      ? "Archived"
-                      : e.booking_available
-                        ? "On sale"
-                        : "Ended / unavailable"}
+                    No matching listings. Adjust your search or add a listing.
                   </Text>
-                  <PrimaryButton
-                    label={archive ? "Edit & republish" : "Edit"}
-                    disabled={busy}
-                    onPress={() => edit(e)}
-                  />
-                  <PrimaryButton
-                    label="Archive / delete"
-                    disabled={busy || archive}
-                    onPress={() =>
-                      Alert.alert(
-                        "Archive event?",
-                        `${e.title} will be removed from both apps.`,
-                        [
-                          { text: "Keep", style: "cancel" },
-                          {
-                            text: "Archive",
-                            style: "destructive",
-                            onPress: () => void remove(e),
-                          },
-                        ],
-                      )
-                    }
-                  />
-                </View>
-              ))}
+                )}
+                {visibleItems.map((e) => (
+                  <View
+                    key={`${e.resource_type}:${e.resource_id}`}
+                    style={{
+                      padding: 16,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 14,
+                    }}
+                  >
+                    <Text style={{ fontSize: 18, fontWeight: "800" }}>
+                      {e.title}
+                    </Text>
+                    <Text>
+                      {e.category} - {e.date} -{" "}
+                      {e.status === "cancelled"
+                        ? "Archived"
+                        : e.booking_available
+                          ? "On sale"
+                          : "Ended / unavailable"}
+                    </Text>
+                    {e.resource_type !== "movie" && !archive && (
+                      <PrimaryButton
+                        label="Ticket tiers"
+                        disabled={busy || uploading}
+                        onPress={() => setTierTarget(e)}
+                      />
+                    )}
+                    <PrimaryButton
+                      label={archive ? "Edit & republish" : "Edit"}
+                      disabled={busy || uploading}
+                      onPress={() => edit(e)}
+                    />
+                    <PrimaryButton
+                      label="Archive"
+                      disabled={busy || uploading || archive}
+                      onPress={() =>
+                        Alert.alert(
+                          "Archive event?",
+                          `${e.title} will be removed from both apps.`,
+                          [
+                            { text: "Keep", style: "cancel" },
+                            {
+                              text: "Archive",
+                              style: "destructive",
+                              onPress: () => void remove(e),
+                            },
+                          ],
+                        )
+                      }
+                    />
+                  </View>
+                ))}
+              </>
+            )}
           </>
         )}
       </ScrollView>

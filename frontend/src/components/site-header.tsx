@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { Link } from "@tanstack/react-router";
-import { Search, Ticket } from "lucide-react";
+import { Search } from "lucide-react";
 
 import logo from "@/assets/Official_Tixora_Logo.png";
 import { Button } from "@/components/ui/button";
@@ -110,13 +110,6 @@ export function SiteHeader() {
               </Button>
             </>
           )}
-
-          <Button asChild className="hidden gap-2 sm:inline-flex">
-            <Link to="/events" search={{ q: undefined, category: undefined }}>
-              <Ticket className="size-4" />
-              Book tickets
-            </Link>
-          </Button>
         </div>
       </div>
     </header>

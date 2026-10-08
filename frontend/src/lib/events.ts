@@ -14,6 +14,7 @@ export type TicketTier = {
 export type EventCategory = "Concerts" | "Movies" | "Events";
 
 export type TixEvent = {
+  poster_path?: string | null;
   status?: string;
   admin_subtitle?: string;
   resource_type: "movie" | "concert" | "event";

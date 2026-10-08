@@ -127,10 +127,10 @@ export function EventActions({ event }: { event: TixEvent }) {
             }}
           />
           <Text style={{ color: colors.mutedForeground }}>
-            PayMongo sandbox. Test payments only.
+            Test mode · No real charges.
           </Text>
           <PrimaryButton
-            label={busy ? "Please wait..." : "Continue to sandbox payment"}
+            label={busy ? "Please wait..." : "Continue to payment"}
             disabled={
               busy ||
               !event.booking_available ||

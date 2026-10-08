@@ -121,8 +121,8 @@ export function LandingPage() {
         <section className="mx-auto max-w-6xl px-4 py-16">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="eyebrow text-primary">Popular near you</p>
-              <h2 className="mt-1 text-3xl font-bold">Trending this month</h2>
+              <p className="eyebrow text-primary">Discover what’s on</p>
+              <h2 className="mt-1 text-3xl font-bold">Upcoming events</h2>
             </div>
             <Button asChild variant="outline">
               <Link to="/events" search={{ q: undefined, category: undefined }}>

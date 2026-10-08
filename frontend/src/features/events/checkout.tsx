@@ -134,7 +134,7 @@ export function Checkout({ event }: { event: TixEvent }) {
         {movie ? "Choose a screening and seats" : "Choose your tickets"}
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        PayMongo sandbox · Test payments only. Tickets are issued after payment verification.
+        Test mode · No real charges. Tickets are issued after payment verification.
       </p>
       {loading && (
         <p className="mt-4" role="status">
@@ -256,7 +256,7 @@ export function Checkout({ event }: { event: TixEvent }) {
         }
         onClick={pay}
       >
-        {busy ? "Please wait..." : "Continue to sandbox payment"}
+        {busy ? "Please wait..." : "Continue to payment"}
       </Button>
       <a className="mt-3 block text-center text-sm text-primary" href="/bookings">
         My bookings and payment status
