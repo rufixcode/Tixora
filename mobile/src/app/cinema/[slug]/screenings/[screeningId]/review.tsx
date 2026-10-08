@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { AppScreen } from "@/components/screen";
 import { PrimaryButton } from "@/components/primary-button";
@@ -9,8 +9,6 @@ import {
   reviewSeatHold,
   type BookingReview,
 } from "@/lib/cinema";
-import { apiRequest } from "@/lib/api";
-import { openCheckout, requestKey } from "@/lib/checkout";
 import { formatPrice } from "@/lib/events";
 import { useAuth } from "@/providers/auth-provider";
 import { colors } from "@/theme/tokens";
@@ -25,7 +23,6 @@ export default function BookingReviewScreen() {
   const [review, setReview] = useState<BookingReview | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const key = useRef<string | null>(null);
   useEffect(() => {
     if (!session || !screeningId || !hold) return;
     let active = true;
@@ -46,30 +43,6 @@ export default function BookingReviewScreen() {
       active = false;
     };
   }, [session, screeningId, hold]);
-  async function pay() {
-    if (!session || busy) return;
-    setBusy(true);
-    setError("");
-    key.current ??= requestKey();
-    try {
-      const r = await apiRequest<{ checkout_url: string }>(
-        `/screenings/${screeningId}/bookings`,
-        {
-          method: "POST",
-          token: session.token,
-          body: JSON.stringify({ hold_token: hold, request_key: key.current }),
-        },
-      );
-      await openCheckout(r.checkout_url);
-      router.replace("/bookings" as never);
-    } catch (e) {
-      setError(
-        `${(e as Error).message} Check My bookings to resume any pending order.`,
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
   async function release() {
     if (!session || busy) return;
     setBusy(true);
@@ -110,8 +83,8 @@ export default function BookingReviewScreen() {
           Review your seats
         </Text>
         <Text>
-          Test mode · No real charges. Tickets appear in My bookings after
-          payment verification.
+          Your selected seats are held while this review is open. Payment is
+          not part of this phase.
         </Text>
         {review && (
           <View
@@ -145,24 +118,7 @@ export default function BookingReviewScreen() {
             {error}
           </Text>
         )}
-        {review && (
-          <>
-            <PrimaryButton
-              label={busy ? "Please wait..." : "Continue to payment"}
-              disabled={busy}
-              onPress={() => void pay()}
-            />
-            <PrimaryButton
-              label="Release seats"
-              disabled={busy}
-              onPress={() => void release()}
-            />
-          </>
-        )}
-        <PrimaryButton
-          label="My bookings"
-          onPress={() => router.push("/bookings" as never)}
-        />
+        {review && <PrimaryButton label="Release seats" disabled={busy} onPress={() => void release()} />}
         <PrimaryButton
           label="Choose seats again"
           onPress={() =>
