@@ -1,0 +1,6 @@
+# Linux deployment files must work after a Windows checkout/upload too.
+*.sh text eol=lf
+deploy/native/*.service text eol=lf
+deploy/native/*.conf text eol=lf
+backend/Dockerfile.render text eol=lf
+backend/render/*.conf text eol=lf
