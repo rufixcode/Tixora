@@ -27,11 +27,18 @@ export async function apiRequest<T>(
   if (options.body && !(options.body instanceof FormData))
     headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    ...fetchOptions,
-    cache: "no-store",
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      ...fetchOptions,
+      headers,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    throw new ApiError(
+      "Cannot reach Tixora. Check your connection. If it continues, check the mobile API URL and allow this website address in the backend's CORS settings.",
+    );
+  }
   const body = response.headers
     .get("content-type")
     ?.includes("application/json")
