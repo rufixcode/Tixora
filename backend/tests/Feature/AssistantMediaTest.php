@@ -78,7 +78,7 @@ class AssistantMediaTest extends TestCase
         User::factory()->create(['email' => 'private-customer@example.test']);
         Http::fake(['model.test/*' => Http::response(['choices' => [['message' => ['content' => 'Open My bookings.', 'tool_calls' => [['function' => ['name' => 'run_command']]]]]], 'actions' => [['route' => 'https://evil.test']]])]);
         $this->postJson('/api/assistant/chat', ['message' => 'Help me navigate'])->assertOk()->assertJsonPath('mode', 'ai')->assertJsonPath('reply', 'Open My bookings.')->assertJsonPath('actions.0.route', 'events');
-        Http::assertSent(fn ($r) => ! isset($r['tools']) && ! str_contains(json_encode($r->data()), 'private-customer@example.test') && $r->hasHeader('Authorization', 'Bearer private-test-key'));
+        Http::assertSent(fn ($r) => ! isset($r['tools']) && ! isset($r['chat_template_kwargs']) && ! str_contains(json_encode($r->data()), 'private-customer@example.test') && $r->hasHeader('Authorization', 'Bearer private-test-key'));
     }
 
     public function test_provider_failure_returns_help_without_leaking_error(): void
