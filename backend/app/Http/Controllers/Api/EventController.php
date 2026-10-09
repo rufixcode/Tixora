@@ -54,7 +54,7 @@ class EventController extends Controller
             }
         }
 
-        return response()->json($events->values()->all());
+        return response()->json($events->values()->all())->header('Cache-Control', 'no-store');
     }
 
     public function show(string $slug)
@@ -67,7 +67,7 @@ class EventController extends Controller
             ], 404);
         }
 
-        return response()->json($event);
+        return response()->json($event)->header('Cache-Control', 'no-store');
     }
 
     public function catalog(bool $includeArchived = false)

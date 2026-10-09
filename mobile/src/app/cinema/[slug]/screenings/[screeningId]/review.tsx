@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { BackButton } from "@/components/back-button";
 import { AppScreen } from "@/components/screen";
 import { PrimaryButton } from "@/components/primary-button";
 import { LoadingState, MessageState } from "@/components/state-view";
@@ -36,6 +37,19 @@ function BookingReviewContent() {
   const paymentKey = useRef<string | null>(null);
   const paymentLock = useRef(false);
   const [paymentStarted, setPaymentStarted] = useState(false);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    if (!review?.expires_at) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [review?.expires_at]);
+  const remaining = review?.expires_at
+    ? Math.max(
+        0,
+        Math.ceil((new Date(review.expires_at).getTime() - now) / 1000),
+      )
+    : null;
+  const expired = remaining === 0 && !paymentStarted;
   useEffect(() => {
     if (!session || !screeningId || !hold) return;
     let active = true;
@@ -57,7 +71,7 @@ function BookingReviewContent() {
     };
   }, [session, screeningId, hold]);
   async function pay() {
-    if (!session || !review || busy || paymentLock.current) return;
+    if (!session || !review || busy || paymentLock.current || expired) return;
     paymentLock.current = true;
     setBusy(true);
     setError("");
@@ -120,78 +134,217 @@ function BookingReviewContent() {
     );
   return (
     <AppScreen>
-      <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 16 }}
-      >
-        <Text style={{ fontSize: 28, fontWeight: "800" }}>
-          Review your seats
-        </Text>
-        <Text>
-          Complete payment before your seat hold expires. Test mode · No real
-          charges. Your QR tickets appear in My bookings after payment
-          verification.
-        </Text>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <BackButton label="Back" onPress={() => router.back()} />
+          <Text style={styles.brand}>TIXORA CINEMA</Text>
+        </View>
+        <Text style={styles.eyebrow}>SEATS SELECTED · PAYMENT NEXT</Text>
+        <Text style={styles.title}>Review your seats</Text>
+        <Text style={styles.copy}>One last look before your movie night.</Text>
         {review && (
-          <View
-            style={{
-              backgroundColor: colors.primarySoft,
-              padding: 20,
-              borderRadius: 16,
-              gap: 12,
-            }}
-          >
-            <Text style={{ fontSize: 20, fontWeight: "800" }}>
-              {review.screening.cinema_name} - {review.screening.screen_name}
-            </Text>
-            <Text>
-              {new Date(review.screening.start_time).toLocaleString()}
-            </Text>
-            <Text>
-              {review.seats
-                .map((s) => `${s.row_label}${s.seat_number}`)
-                .join(", ")}
-            </Text>
-            <Text
-              style={{ fontSize: 24, fontWeight: "800", color: colors.primary }}
-            >
-              {formatPrice(review.total_amount)}
+          <>
+            <View style={styles.card}>
+              <Text style={styles.label}>YOUR SCREENING</Text>
+              <Text style={styles.heading}>{review.screening.cinema_name}</Text>
+              <Text style={styles.copy}>
+                {review.screening.screen_name} · {review.screening.city}
+              </Text>
+              <Text style={styles.date}>
+                {new Intl.DateTimeFormat("en-PH", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }).format(new Date(review.screening.start_time))}
+              </Text>
+              <View style={styles.divider} />
+              <Text style={styles.label}>SELECTED SEATS</Text>
+              <View style={styles.seats}>
+                {review.seats.map((seat) => (
+                  <View key={seat.id} style={styles.seat}>
+                    <Text style={styles.seatText}>
+                      {seat.row_label}
+                      {seat.seat_number}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={styles.copy}>
+                {review.seats.length} admission{" "}
+                {review.seats.length === 1 ? "ticket" : "tickets"}
+              </Text>
+            </View>
+            {!paymentStarted && (
+              <View style={styles.notice}>
+                <Text style={styles.noticeTitle}>
+                  {expired
+                    ? "Seat hold expired"
+                    : remaining === null
+                      ? "Your seats are temporarily held"
+                      : `Seats held for ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}
+                </Text>
+                <Text style={styles.copy}>
+                  {expired
+                    ? "Choose your seats again to check availability."
+                    : "Begin checkout before the hold expires."}
+                </Text>
+              </View>
+            )}
+            <View style={styles.card}>
+              <Text style={styles.heading}>Payment summary</Text>
+              <View style={styles.row}>
+                <Text style={styles.copy}>
+                  {review.seats.length} ×{" "}
+                  {formatPrice(review.screening.ticket_price)}
+                </Text>
+                <Text style={styles.amount}>
+                  {formatPrice(review.total_amount)}
+                </Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.row}>
+                <Text style={styles.heading}>Total</Text>
+                <Text style={styles.total}>
+                  {formatPrice(review.total_amount)}
+                </Text>
+              </View>
+              <View style={styles.testBadge}>
+                <Text style={styles.testText}>
+                  TEST PAYMENT · NO REAL CHARGE
+                </Text>
+              </View>
+              <Text style={styles.copy}>
+                Continue to PayMongo to choose an available payment method.
+                After verification, your admission QR appears in My bookings.
+              </Text>
+            </View>
+          </>
+        )}
+        {!!error && (
+          <View style={styles.notice}>
+            <Text accessibilityRole="alert" style={styles.error}>
+              {error}
             </Text>
           </View>
         )}
-        {!!error && (
-          <Text accessibilityRole="alert" style={{ color: colors.destructive }}>
-            {error}
-          </Text>
-        )}
-        {review && (
+        {review && !expired && (
           <PrimaryButton
-            label={busy ? "Please wait..." : "Continue to payment"}
+            label={
+              busy
+                ? "Opening secure checkout…"
+                : paymentStarted
+                  ? "Retry payment"
+                  : `Continue to payment · ${formatPrice(review.total_amount)}`
+            }
             disabled={busy}
             onPress={() => void pay()}
           />
         )}
         <PrimaryButton
-          label="My bookings and payment status"
+          variant="secondary"
+          label="My bookings & payment status"
           disabled={busy}
           onPress={() => router.push("/bookings" as never)}
         />
         {review && !paymentStarted && (
           <PrimaryButton
-            label="Release seats"
+            variant="text"
+            label="Release seats & choose again"
             disabled={busy}
             onPress={() => void release()}
           />
         )}
-        <PrimaryButton
-          label="Choose seats again"
-          disabled={busy || paymentStarted}
-          onPress={() =>
-            router.replace(
-              `/cinema/${slug}/screenings/${screeningId}/seats` as never,
-            )
-          }
-        />
+        {!review && (
+          <PrimaryButton
+            variant="text"
+            label="Choose seats again"
+            onPress={() =>
+              router.replace(
+                `/cinema/${slug}/screenings/${screeningId}/seats` as never,
+              )
+            }
+          />
+        )}
       </ScrollView>
     </AppScreen>
   );
 }
+const styles = StyleSheet.create({
+  content: {
+    padding: 20,
+    paddingBottom: 40,
+    gap: 16,
+    maxWidth: 560,
+    width: "100%",
+    alignSelf: "center",
+  },
+  header: { flexDirection: "row", alignItems: "center", gap: 12 },
+  brand: {
+    color: colors.primary,
+    fontWeight: "900",
+    letterSpacing: 2,
+    fontSize: 12,
+  },
+  eyebrow: {
+    color: colors.primary,
+    fontWeight: "800",
+    fontSize: 10,
+    letterSpacing: 1.5,
+    marginTop: 12,
+  },
+  title: { fontSize: 30, fontWeight: "800", color: colors.foreground },
+  copy: { color: colors.mutedForeground, fontSize: 14, lineHeight: 21 },
+  card: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 20,
+    padding: 20,
+    gap: 12,
+    backgroundColor: colors.white,
+  },
+  heading: { color: colors.foreground, fontSize: 19, fontWeight: "800" },
+  label: {
+    color: colors.mutedForeground,
+    fontSize: 10,
+    letterSpacing: 1.4,
+    fontWeight: "800",
+  },
+  date: { color: colors.foreground, fontSize: 14, fontWeight: "600" },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 4 },
+  seats: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  seat: {
+    borderRadius: 10,
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  seatText: { color: colors.primary, fontWeight: "800", fontSize: 16 },
+  notice: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: 14,
+    padding: 16,
+    gap: 6,
+  },
+  noticeTitle: { color: colors.primaryDeep, fontWeight: "800", fontSize: 14 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  amount: { color: colors.foreground, fontWeight: "700", fontSize: 14 },
+  total: { color: colors.primary, fontWeight: "900", fontSize: 26 },
+  testBadge: {
+    backgroundColor: colors.muted,
+    padding: 10,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  testText: {
+    color: colors.mutedForeground,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+  error: { color: colors.destructive, lineHeight: 21 },
+});

@@ -126,7 +126,7 @@ class CinemaController extends Controller
                 ->where('h.screening_id', $screening)->where('h.hold_token', $validated['hold_token'])
                 ->where('h.user_id', $request->user()->id)->where('h.expires_at', '>', now())
                 ->lockForUpdate()->orderBy('seat.row_label')->orderBy('seat.seat_number')
-                ->select(['seat.id', 'seat.row_label', 'seat.seat_number', 'seat.seat_type'])->get();
+                ->select(['seat.id', 'seat.row_label', 'seat.seat_number', 'seat.seat_type', 'h.expires_at'])->get();
             if ($seats->isEmpty()) {
                 throw ValidationException::withMessages(['hold_token' => ['This seat hold has expired or is invalid.']]);
             }
@@ -136,6 +136,7 @@ class CinemaController extends Controller
 
         return response()->json([
             'valid' => true, 'screening' => $this->screeningPayload($result['screening']),
+            'expires_at' => Carbon::parse($result['seats']->min('expires_at'))->toIso8601String(),
             'seats' => $result['seats']->map(fn ($seat) => $this->seatPayload($seat, 'held')),
             'total_amount' => round($result['seats']->count() * (float) $result['screening']->ticket_price, 2),
         ])->header('Cache-Control', 'no-store');
