@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "tanstack-start",
+  "rewrites": [
+    { "source": "/web/:path*", "destination": "https://tixora-e6rf.onrender.com/web/:path*" },
+    { "source": "/sanctum/:path*", "destination": "https://tixora-e6rf.onrender.com/sanctum/:path*" },
+    { "source": "/api/:path*", "destination": "https://tixora-e6rf.onrender.com/api/:path*" }
+  ]
+}
