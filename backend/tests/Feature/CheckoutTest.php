@@ -32,6 +32,18 @@ class CheckoutTest extends TestCase
         return compact('event', 'tier');
     }
 
+    public function test_payment_diagnostics_identify_missing_and_wrong_keys_without_printing_secrets(): void
+    {
+        config(['paymongo.secret_key' => 'sk_live_private', 'paymongo.webhook_secret' => 'private-signing-secret']);
+        $this->artisan('tixora:payment-status')
+            ->expectsOutput('PAYMONGO_SECRET_KEY: WRONG TYPE: requires a secret test key')
+            ->expectsOutput('PAYMONGO_WEBHOOK_SECRET: Present')->assertSuccessful();
+        config(['paymongo.secret_key' => '', 'paymongo.webhook_secret' => '']);
+        $this->artisan('tixora:payment-status')
+            ->expectsOutput('PAYMONGO_SECRET_KEY: MISSING')
+            ->expectsOutput('PAYMONGO_WEBHOOK_SECRET: MISSING')->assertSuccessful();
+    }
+
     private function fakeSession(bool $paid = false, string $status = 'active', int $amount = 50000): void
     {
         Http::swap(new Factory);
