@@ -1,0 +1,21 @@
+FROM php:8.4-apache-bookworm
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libicu-dev libzip-dev libonig-dev \
+    && docker-php-ext-install pdo_mysql mbstring intl zip opcache \
+    && rm -rf /var/lib/apt/lists/* \
+    && a2enmod rewrite \
+    && printf 'Listen 10000\n' > /etc/apache2/ports.conf
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+COPY uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+COPY render/apache.conf /etc/apache2/sites-available/000-default.conf
+WORKDIR /var/www/html
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --prefer-dist --no-interaction --no-scripts --no-autoloader
+COPY . .
+RUN composer dump-autoload --no-dev --classmap-authoritative \
+    && mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod +x render/start.sh
+ENV PORT=10000
+EXPOSE 10000
+CMD ["bash", "render/start.sh"]

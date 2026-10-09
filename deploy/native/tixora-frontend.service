@@ -1,0 +1,22 @@
+[Unit]
+Description=Tixora website
+After=network.target
+
+[Service]
+Type=simple
+User=student10
+Group=www-data
+WorkingDirectory=/var/www/tixora/frontend
+EnvironmentFile=/var/www/tixora/deploy/native/frontend.env
+ExecStart=/usr/bin/node /var/www/tixora/frontend/.output/server/index.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/var/www/tixora
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

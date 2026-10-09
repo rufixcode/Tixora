@@ -1,5 +1,14 @@
 # Tixora deployment skeleton
 
+For the cloud alternative using Render and Aiven MySQL, see
+[the Render backend guide](deploy/render/README.md). Vercel frontend integration
+is a separate step after the backend is live.
+
+For deployment directly on Ubuntu 24.04 without Docker, use
+[the native deployment kit](deploy/native/README.md). It contains environment
+templates, Nginx/PHP upload settings, a systemd website service and a preparation
+script. The Docker instructions below remain an alternative.
+
 Prepared for a Linux server with Docker Engine and Compose v2, administered over SSH. No server has been contacted or deployed. The professor's OS, hostname, domain, TLS/reverse-proxy arrangement and mobile delivery format are still unknown. Adjust this skeleton together before exposing it publicly.
 
 ## Architecture
