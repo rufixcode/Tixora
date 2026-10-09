@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\TicketController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => response()->json(['service' => 'Tixora API']));
@@ -33,6 +34,7 @@ Route::prefix('web')->name('web.')->group(function () {
             Route::put('/favorites/{slug}', [FavoriteController::class, 'store']);
             Route::delete('/favorites/{slug}', [FavoriteController::class, 'destroy']);
             Route::get('/admin/events', [AdminController::class, 'index']);
+            Route::post('/admin/tickets/check', [TicketController::class, 'check'])->middleware('throttle:10,1');
             Route::post('/admin/images', [MediaController::class, 'store'])->middleware('throttle:10,1');
             Route::get('/admin/overview', [AdminController::class, 'overview']);
             Route::get('/admin/bookings', [AdminController::class, 'bookings']);

@@ -14,16 +14,44 @@ class AdminTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_local_admin_creation_does_not_overwrite_an_existing_account(): void
+    public function test_admin_bootstrap_uses_hidden_password_and_does_not_overwrite_accounts(): void
     {
         Storage::fake('local');
-        $this->artisan('tixora:admin-create', ['email' => 'admin@example.test'])->assertSuccessful();
+        $this->artisan('tixora:admin-bootstrap', ['email' => 'admin@example.test'])
+            ->expectsQuestion('Password (hidden)', 'SecureExample!Pass72')
+            ->expectsQuestion('Confirm password (hidden)', 'SecureExample!Pass72')
+            ->expectsConfirmation('Create the first administrator for admin@example.test in the currently configured database?', 'yes')
+            ->assertSuccessful();
         $user = User::where('email', 'admin@example.test')->firstOrFail();
         $this->assertTrue($user->is_admin);
-        $this->assertStringContainsString('Temporary password:', Storage::disk('local')->get('admin-login.txt'));
+        $this->assertTrue(Hash::check('SecureExample!Pass72', $user->password));
+        Storage::disk('local')->assertMissing('admin-login.txt');
         $hash = $user->password;
         $this->artisan('tixora:admin-create', ['email' => 'admin@example.test'])->assertFailed();
         $this->assertSame($hash, $user->fresh()->password);
+    }
+
+    public function test_admin_bootstrap_rejects_weak_password_and_mismatched_confirmation(): void
+    {
+        foreach (['short', 'SecureExample!Pass72'] as $password) {
+            $this->artisan('tixora:admin-bootstrap', ['email' => 'admin@example.test'])
+                ->expectsQuestion('Password (hidden)', $password)
+                ->expectsQuestion('Confirm password (hidden)', 'different')
+                ->assertFailed();
+        }
+        $this->assertDatabaseCount('users', 0);
+    }
+
+    public function test_admin_bootstrap_requires_confirmation_and_cannot_promote_existing_users(): void
+    {
+        $this->artisan('tixora:admin-bootstrap', ['email' => 'admin@example.test'])
+            ->expectsQuestion('Password (hidden)', 'SecureExample!Pass72')
+            ->expectsQuestion('Confirm password (hidden)', 'SecureExample!Pass72')
+            ->expectsConfirmation('Create the first administrator for admin@example.test in the currently configured database?', 'no')
+            ->assertFailed();
+        $user = User::factory()->create(['email' => 'admin@example.test']);
+        $this->artisan('tixora:admin-bootstrap', ['email' => 'admin@example.test'])->assertFailed();
+        $this->assertFalse($user->fresh()->is_admin);
     }
 
     public function test_login_changes_require_current_password_and_revoke_sessions(): void

@@ -16,7 +16,13 @@ class BookingController extends Controller
 
         return response()->json($bookings->map(function ($b) {
             $b->total_amount = (float) $b->total_amount;
-            $b->tickets = DB::table('tickets')->where('booking_id', $b->id)->get(['ticket_number', 'ticket_type', 'status']);
+            $b->tickets = DB::table('tickets')->where('booking_id', $b->id)->get(['id', 'ticket_number', 'ticket_type', 'status', 'qr_code', 'issued_at', 'used_at'])->map(function ($ticket) use ($b) {
+                $ticket->qr_payload = $b->status === 'confirmed' && $ticket->status === 'valid' ? 'tixora:ticket:'.$ticket->qr_code : null;
+                unset($ticket->qr_code);
+                $ticket->seat = DB::table('ticket_seats as ts')->join('seats as s', 's.id', '=', 'ts.seat_id')->where('ts.ticket_id', $ticket->id)->select('s.row_label', 's.seat_number')->first();
+
+                return $ticket;
+            });
             $b->seats = DB::table('booking_seats as bs')->join('seats as s', 's.id', '=', 'bs.seat_id')->where('bs.booking_id', $b->id)->get(['s.row_label', 's.seat_number']);
 
             return $b;

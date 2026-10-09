@@ -2,6 +2,31 @@
 
 The Laravel checkout integration is implemented. Activation still needs your own PayMongo test key, test webhook signing secret and a publicly reachable HTTPS backend. Blank secrets intentionally keep checkout unavailable.
 
+## Activate the deployed app
+
+In Render → your Tixora backend → Environment, set these values privately:
+
+| Variable | Value |
+| --- | --- |
+| `PAYMONGO_SECRET_KEY` | Your own PayMongo secret **test** key, starting with `sk_test_` |
+| `PAYMONGO_WEBHOOK_SECRET` | Signing secret for the test webhook below |
+| `PAYMONGO_RETURN_URL` | `https://tixora-self.vercel.app/bookings` |
+| `PAYMONGO_PAYMENT_METHODS` | `card` for the first sandbox checkout |
+
+In PayMongo's test dashboard, add this webhook URL:
+
+`https://tixora-e6rf.onrender.com/api/payments/paymongo/webhook`
+
+Subscribe to **checkout_session.payment.paid**. Copy its signing secret into Render, then save and redeploy. API keys and signing secrets belong only in the backend's private environment settings. The two Vercel apps do not need payment secrets. Keep `APP_DEBUG=false`.
+
+After deploying the updated code to `main`, sign in as a regular customer, book a future event and pay with the official test card. PayMongo sends a signed webhook; the backend retrieves the checkout session independently and verifies the amount and currency. Only then does the booking become confirmed and issue one distinct QR per ticket. The booking screens refresh automatically while open. A checkout redirect alone never issues tickets.
+
+On Android, checkout opens in a browser. After paying, close it and return to **My bookings** in Tixora. The checkout return website uses a separate web login session; a native app login does not sign you into that website automatically.
+
+The admission QR and PayMongo's payment QR (if a QR payment method is enabled later) serve different purposes. Admission QR codes contain a private random entry credential, no customer email or payment secret. Both clients render them locally; no external QR generation service receives them. Tickets can be presented from the booking screen or a private screenshot. For admin setup and single-use admission, see [ADMIN-SETUP.md](ADMIN-SETUP.md).
+
+Confirm one completed sandbox payment, one cancellation and one duplicate entry rejection before building the final APK. Automated tests mock PayMongo; your real dashboard credentials and webhook delivery still need this end-to-end check. Live keys remain disabled in this integration.
+
 ## Activate locally
 
 1. Open PayMongo Dashboard → Settings → Developers in test mode. Copy the secret test key (starts with `sk_test_`) into `PAYMONGO_SECRET_KEY` in `backend/.env`. Do not put it in React or Expo environment files or send it in chat.
