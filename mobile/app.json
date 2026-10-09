@@ -18,13 +18,24 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Tixora to scan admission tickets.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -39,7 +50,7 @@
         "expo-image-picker",
         {
           "photosPermission": "Choose event posters from your photos.",
-          "cameraPermission": false,
+          "cameraPermission": "Allow Tixora to scan admission tickets.",
           "microphonePermission": false
         }
       ]
@@ -47,6 +58,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a6eb333a-90cf-48f6-aa27-da9ffe75d5c1"
+      }
+    },
+    "owner": "ruffiemarecare"
   }
 }

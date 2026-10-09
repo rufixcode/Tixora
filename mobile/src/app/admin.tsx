@@ -146,6 +146,10 @@ export default function Admin() {
         contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 14 }}
       >
         <PrimaryButton
+          label="Ticket scanner"
+          onPress={() => router.push("/scanner" as never)}
+        />
+        <PrimaryButton
           label="Sign out"
           disabled={busy || uploading}
           onPress={async () => {

@@ -46,6 +46,7 @@ class User extends Authenticatable
     {
         return [
             'is_admin' => 'boolean',
+            'is_security' => 'boolean',
             'preferences' => 'array',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',

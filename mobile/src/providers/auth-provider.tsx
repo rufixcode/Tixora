@@ -14,6 +14,7 @@ export type AuthUser = {
   name: string;
   email: string;
   is_admin?: boolean;
+  is_security?: boolean;
   username?: string | null;
   preferences?: { favorite_category?: string } | null;
 };

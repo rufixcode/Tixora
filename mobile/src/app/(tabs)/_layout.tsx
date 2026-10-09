@@ -11,6 +11,7 @@ export default function TabsLayout() {
   if (status === "loading") return <LoadingState label="Opening Tixora..." />;
   if (status !== "authenticated") return <Redirect href={"/login" as never} />;
   if (session?.user.is_admin) return <Redirect href="/admin" />;
+  if (session?.user.is_security) return <Redirect href={"/scanner" as never} />;
   return (
     <Tabs
       screenOptions={({ route }) => ({
