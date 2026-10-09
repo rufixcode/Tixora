@@ -1,6 +1,6 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { Alert, AppState, ScrollView, Text, View } from "react-native";
 import { AppScreen } from "@/components/screen";
 import { PrimaryButton } from "@/components/primary-button";
 import { apiRequest } from "@/lib/api";
@@ -8,13 +8,14 @@ import { openCheckout } from "@/lib/checkout";
 import { formatPrice } from "@/lib/events";
 import { useAuth } from "@/providers/auth-provider";
 import { colors } from "@/theme/tokens";
+import { QrTicket, type IssuedTicket } from "@/components/qr-ticket";
 type Booking = {
   id: number;
   event_title: string;
   booking_reference: string;
   status: string;
   total_amount: number;
-  tickets: { ticket_number: string; status: string }[];
+  tickets: IssuedTicket[];
   seats: { row_label: string; seat_number: number }[];
 };
 export default function Bookings() {
@@ -23,18 +24,27 @@ export default function Bookings() {
   const [items, setItems] = useState<Booking[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const pending = useRef(false);
   const load = useCallback(async () => {
     if (!session) {
+      setItems([]);
+      pending.current = false;
       setError("Sign in to view your bookings.");
       return;
     }
     setBusy(true);
     setError("");
     try {
-      setItems(
-        await apiRequest<Booking[]>("/bookings", { token: session.token }),
+      const bookings = await apiRequest<Booking[]>("/bookings", {
+        token: session.token,
+      });
+      setItems(bookings);
+      pending.current = bookings.some(
+        (booking) => booking.status === "pending",
       );
     } catch (e) {
+      setItems([]);
+      pending.current = false;
       setError((e as Error).message);
     } finally {
       setBusy(false);
@@ -43,6 +53,10 @@ export default function Bookings() {
   useFocusEffect(
     useCallback(() => {
       void load();
+      const timer = setInterval(() => {
+        if (pending.current && AppState.currentState === "active") void load();
+      }, 15000);
+      return () => clearInterval(timer);
     }, [load]),
   );
   async function action(id: number, kind: "checkout" | "cancel") {
@@ -70,8 +84,8 @@ export default function Bookings() {
         <PrimaryButton label="Back" onPress={() => router.back()} />
         <Text style={{ fontSize: 28, fontWeight: "800" }}>My bookings</Text>
         <Text>
-          Sandbox payments only. Refresh after paying. Pending bookings hold
-          inventory until paid or cancelled.
+          Test payments only. Your QR tickets appear after payment is verified.
+          Return here after paying; your booking status refreshes automatically.
         </Text>
         <PrimaryButton
           label={busy ? "Loading..." : "Refresh status"}
@@ -111,9 +125,12 @@ export default function Bookings() {
               </Text>
             )}
             {b.tickets.map((t) => (
-              <Text key={t.ticket_number}>
-                Ticket {t.ticket_number} - {t.status}
-              </Text>
+              <QrTicket
+                key={t.ticket_number}
+                ticket={t}
+                title={b.event_title}
+                reference={b.booking_reference}
+              />
             ))}
             {b.status === "pending" && (
               <>

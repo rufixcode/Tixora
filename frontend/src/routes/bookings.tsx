@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/api";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/events";
+import { QrTicket, type IssuedTicket } from "@/components/qr-ticket";
 export const Route = createFileRoute("/bookings")({ component: Bookings });
 type Booking = {
   id: number;
@@ -11,7 +12,7 @@ type Booking = {
   booking_reference: string;
   status: string;
   total_amount: number;
-  tickets: { ticket_number: string; status: string }[];
+  tickets: IssuedTicket[];
   seats: { row_label: string; seat_number: number }[];
 };
 function Bookings() {
@@ -24,6 +25,7 @@ function Bookings() {
     try {
       setItems(await apiRequest<Booking[]>("/bookings"));
     } catch (e) {
+      setItems([]);
       setError(
         (e as { status?: number }).status === 401
           ? "Sign in to view your bookings. If you paid from mobile, return to the app and refresh My bookings."
@@ -36,6 +38,14 @@ function Bookings() {
   useEffect(() => {
     void load();
   }, []);
+  const waitingForPayment = items.some((b) => b.status === "pending");
+  useEffect(() => {
+    if (!waitingForPayment || busy) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 10000);
+    return () => window.clearInterval(timer);
+  }, [waitingForPayment, busy]);
   async function action(id: number, kind: "checkout" | "cancel") {
     if (
       kind === "cancel" &&
@@ -71,8 +81,8 @@ function Bookings() {
           </Button>
         </div>
         <p className="my-4 text-muted-foreground">
-          Sandbox payments only. Returning from checkout does not confirm payment; verified payments
-          appear here. Pending bookings keep inventory reserved until paid or cancelled.
+          Test payments only. Your QR tickets appear after payment is verified. Pending bookings
+          refresh automatically and keep tickets reserved until paid or cancelled.
         </p>
         {error && (
           <p role="alert" className="my-4 text-destructive">
@@ -93,11 +103,16 @@ function Bookings() {
               {b.seats.length > 0 && (
                 <p>Seats: {b.seats.map((s) => `${s.row_label}${s.seat_number}`).join(", ")}</p>
               )}
-              {b.tickets.map((t) => (
-                <p key={t.ticket_number} className="mt-2 rounded bg-muted p-2 text-sm">
-                  Ticket {t.ticket_number} · {t.status}
-                </p>
-              ))}
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                {b.tickets.map((t) => (
+                  <QrTicket
+                    key={t.ticket_number}
+                    ticket={t}
+                    title={b.event_title}
+                    reference={b.booking_reference}
+                  />
+                ))}
+              </div>
               {b.status === "pending" && (
                 <div className="mt-4 flex gap-3">
                   <Button disabled={busy} onClick={() => action(b.id, "checkout")}>

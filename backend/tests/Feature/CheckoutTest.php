@@ -84,6 +84,10 @@ class CheckoutTest extends TestCase
         $this->webhook()->assertOk();
         $this->assertDatabaseCount('tickets', 2);
         $this->assertDatabaseHas('bookings', ['status' => 'confirmed']);
+        $tickets = $this->getJson('/api/bookings')->assertOk()->json('0.tickets');
+        $this->assertCount(2, $tickets);
+        $this->assertStringStartsWith('tixora:ticket:', $tickets[0]['qr_payload']);
+        $this->assertNotSame($tickets[0]['qr_payload'], $tickets[1]['qr_payload']);
     }
 
     public function test_wrong_payment_amount_does_not_issue_tickets(): void

@@ -4,6 +4,7 @@ import { CustomerDirectory } from "@/components/customer-directory";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LoginSettings } from "@/components/login-settings";
+import { TicketCheckIn } from "@/components/ticket-check-in";
 import { Button } from "@/components/ui/button";
 import { apiRequest } from "@/lib/api";
 import type { TixEvent } from "@/lib/events";
@@ -22,7 +23,7 @@ const blank = {
   tickets: "",
 };
 function Admin() {
-  const [section, setSection] = useState<"events" | "customers" | "account">("events");
+  const [section, setSection] = useState<"events" | "customers" | "account" | "tickets">("events");
   const [email, setEmail] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [tierTarget, setTierTarget] = useState<TixEvent | null>(null);
@@ -42,10 +43,10 @@ function Admin() {
     try {
       const [events, user] = await Promise.all([
         apiRequest<TixEvent[]>("/admin/events"),
-        apiRequest<{ email: string }>("/me"),
+        apiRequest<{ user: { email: string } }>("/me"),
       ]);
       setItems(events);
-      setEmail(user.email);
+      setEmail(user.user.email);
       setAllowed(true);
       setError("");
     } catch (e) {
@@ -165,19 +166,26 @@ function Admin() {
         )}
         {allowed && (
           <nav aria-label="Admin sections" className="mb-6 flex flex-wrap gap-2">
-            {(["events", "customers", "account"] as const).map((s) => (
+            {(["events", "tickets", "customers", "account"] as const).map((s) => (
               <Button
                 key={s}
                 variant={section === s ? "default" : "outline"}
                 disabled={busy || uploading}
                 onClick={() => setSection(s)}
               >
-                {s === "events" ? "Listings" : s === "account" ? "Admin account" : "Customers"}
+                {s === "events"
+                  ? "Listings"
+                  : s === "account"
+                    ? "Admin account"
+                    : s === "tickets"
+                      ? "Ticket check-in"
+                      : "Customers"}
               </Button>
             ))}
           </nav>
         )}
         {allowed && section === "customers" && <CustomerDirectory />}
+        {allowed && section === "tickets" && <TicketCheckIn />}
         {allowed && section === "account" && <LoginSettings email={email} />}
         {allowed && section === "events" && (
           <div className="space-y-6">

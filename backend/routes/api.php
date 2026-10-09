@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\SettingsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\TicketController;
 
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -47,6 +48,7 @@ Route::middleware(['auth:sanctum', 'throttle:30,1'])->group(function () {
     Route::put('/favorites/{slug}', [FavoriteController::class, 'store']);
     Route::delete('/favorites/{slug}', [FavoriteController::class, 'destroy']);
     Route::get('/admin/events', [AdminController::class, 'index']);
+    Route::post('/admin/tickets/check', [TicketController::class, 'check'])->middleware('throttle:10,1');
     Route::post('/admin/images', [MediaController::class, 'store'])->middleware('throttle:10,1');
     Route::get('/admin/overview', [AdminController::class, 'overview']);
     Route::get('/admin/bookings', [AdminController::class, 'bookings']);
