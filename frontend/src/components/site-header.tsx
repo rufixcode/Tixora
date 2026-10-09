@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 import { Link } from "@tanstack/react-router";
-import { Search } from "lucide-react";
+import { Search, Ticket } from "lucide-react";
 
 import logo from "@/assets/Official_Tixora_Logo.png";
 import { Button } from "@/components/ui/button";
@@ -51,9 +51,9 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4">
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:gap-6">
         <Link to="/" className="flex shrink-0 items-center gap-2">
-          <img src={logo} alt="Tixora" width={112} height={32} className="h-12 w-auto" />
+          <img src={logo} alt="Tixora" width={112} height={32} className="h-7 w-auto sm:h-12" />
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
@@ -70,7 +70,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          <Button asChild variant="ghost" size="icon" className="md:hidden">
+          <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex md:hidden">
             <Link to="/events" search={{ q: undefined, category: undefined }}>
               <Search className="size-4" />
               <span className="sr-only">Browse events</span>
@@ -84,13 +84,19 @@ export function SiteHeader() {
           ) : null}
           {user ? (
             <>
+              <Button asChild variant="outline" className="gap-2 px-3 text-xs sm:text-sm">
+                <Link to="/bookings">
+                  <Ticket className="size-4" />
+                  My bookings
+                </Link>
+              </Button>
               <details className="relative">
-                <summary className="cursor-pointer rounded-lg border px-3 py-2 text-sm">
-                  My account
+                <summary className="cursor-pointer whitespace-nowrap rounded-lg border px-3 py-2 text-sm">
+                  Account
                 </summary>
                 <div className="absolute right-0 top-12 flex w-52 flex-col gap-3 rounded-xl border bg-background p-4 shadow-lg">
                   <span className="truncate font-semibold">{user.name}</span>
-                  <a href="/bookings">Bookings</a>
+                  <Link to="/bookings">My bookings</Link>
                   <a href="/favorites">Saved events</a>
                   <Link to="/settings">Settings</Link>
                   {user.is_admin && <Link to="/admin">Admin dashboard</Link>}

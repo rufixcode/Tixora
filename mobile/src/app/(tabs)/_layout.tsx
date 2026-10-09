@@ -5,7 +5,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { LoadingState } from "@/components/state-view";
 import { colors } from "@/theme/tokens";
 
-const icons = { home: "⌂", discover: "⌕", account: "◉" };
+const icons = { home: "⌂", discover: "⌕", bookings: "▣", account: "◉" };
 export default function TabsLayout() {
   const { status, session } = useAuth();
   if (status === "loading") return <LoadingState label="Opening Tixora..." />;
@@ -31,6 +31,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="home" options={{ title: "Home" }} />
       <Tabs.Screen name="discover" options={{ title: "Discover" }} />
+      <Tabs.Screen name="bookings" options={{ title: "My bookings" }} />
       <Tabs.Screen name="account" options={{ title: "Account" }} />
     </Tabs>
   );
