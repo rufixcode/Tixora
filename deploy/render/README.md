@@ -40,6 +40,10 @@ Under Environment > Secret Files, add filename `aiven-ca.pem`. Paste the complet
 contents of your downloaded Aiven CA certificate, including BEGIN/END lines.
 Render makes this available at `/etc/secrets/aiven-ca.pem`. It must match the
 Aiven service's certificate. The existing Laravel MySQL config uses it for TLS.
+Startup copies this certificate to protected private storage readable by Apache's
+www-data group before caching Laravel configuration. Keep the Render environment
+path pointing to `/etc/secrets/aiven-ca.pem`; startup sets the worker's runtime
+path. The certificate is never placed under public/ or made world-readable.
 
 Only share sanitized build logs/screenshots; hide passwords, keys and DB URIs.
 
