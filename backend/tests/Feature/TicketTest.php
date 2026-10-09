@@ -68,4 +68,41 @@ class TicketTest extends TestCase
         $this->postJson('/api/admin/tickets/check', ['code' => 'TK-123'])->assertUnprocessable();
         $this->assertDatabaseCount('ticket_verifications', 0);
     }
+
+    public function test_security_staff_can_admit_but_cannot_manage_catalog_or_grant_roles(): void
+    {
+        $staff = User::factory()->create(['password' => 'SecureExample!Pass72']);
+        $staff->forceFill(['is_security' => true])->save();
+        [$ticket, $code] = $this->ticket(User::factory()->create());
+        Sanctum::actingAs($staff);
+        $this->getJson('/api/admin/events')->assertForbidden();
+        $this->getJson('/api/admin/customers')->assertForbidden();
+        $this->postJson('/api/tickets/check', ['code' => $code])->assertOk()->assertJsonPath('status', 'valid');
+        $this->postJson('/api/tickets/check', ['code' => $code, 'admit' => true, 'password' => 'SecureExample!Pass72'])->assertOk();
+        $this->postJson('/api/tickets/check', ['code' => $code, 'admit' => true, 'password' => 'SecureExample!Pass72'])->assertConflict();
+        $this->assertDatabaseHas('ticket_verifications', ['ticket_id' => $ticket, 'verified_by' => $staff->id]);
+        $customer = User::factory()->create();
+        Sanctum::actingAs($customer);
+        $this->patchJson('/api/settings', ['name' => 'Customer', 'is_security' => true, 'is_admin' => true])->assertOk();
+        $this->assertFalse($customer->fresh()->is_security);
+        $this->assertFalse($customer->fresh()->is_admin);
+        $this->postJson('/api/tickets/check', ['code' => $code])->assertForbidden();
+    }
+
+    public function test_scanner_account_creation_and_revocation_are_console_only(): void
+    {
+        $this->artisan('tixora:security-account', ['email' => 'guard@example.test'])
+            ->expectsQuestion('Password (hidden)', 'SecureExample!Pass72')
+            ->expectsQuestion('Confirm password (hidden)', 'SecureExample!Pass72')
+            ->expectsConfirmation('Create scanner-only staff account for guard@example.test?', 'yes')->assertSuccessful();
+        $staff = User::where('email', 'guard@example.test')->firstOrFail();
+        $this->assertTrue($staff->is_security);
+        $this->assertFalse($staff->is_admin);
+        $staff->createToken('phone');
+        $this->artisan('tixora:security-account', ['email' => 'guard@example.test'])->assertFailed();
+        $this->artisan('tixora:security-account', ['email' => 'guard@example.test', '--revoke' => true])
+            ->expectsConfirmation('Revoke scanner access for guard@example.test?', 'yes')->assertSuccessful();
+        $this->assertFalse($staff->fresh()->is_security);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
 }

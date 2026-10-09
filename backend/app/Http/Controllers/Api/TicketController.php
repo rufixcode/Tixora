@@ -12,14 +12,14 @@ class TicketController extends Controller
 {
     public function check(Request $request)
     {
-        abort_unless($request->user()->is_admin, 403, 'Administrator access required.');
+        abort_unless($request->user()->is_admin || $request->user()->is_security, 403, 'Ticket staff access required.');
         $data = $request->validate([
             'code' => ['required', 'string', 'regex:/^tixora:ticket:[a-zA-Z0-9]{48}$/'],
             'admit' => ['sometimes', 'boolean'],
             'password' => ['required_if:admit,true', 'nullable', 'string', 'max:128'],
         ]);
         if (($data['admit'] ?? false) && ! Hash::check($data['password'] ?? '', $request->user()->password)) {
-            throw ValidationException::withMessages(['password' => 'Incorrect administrator password.']);
+            throw ValidationException::withMessages(['password' => 'Incorrect staff password.']);
         }
 
         return DB::transaction(function () use ($request, $data) {

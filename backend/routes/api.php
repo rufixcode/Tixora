@@ -41,6 +41,7 @@ Route::get('/user', function (Request $request) {
 Route::middleware(['auth:sanctum', 'throttle:30,1'])->group(function () {
 
     Route::get('/bookings', [BookingController::class, 'index']);
+    Route::post('/tickets/check', [TicketController::class, 'check'])->middleware('throttle:10,1');
     Route::post('/bookings/{booking}/checkout', [BookingController::class, 'checkout']);
     Route::post('/bookings/{booking}/cancel', [BookingController::class, 'cancel']);
     Route::post('/screenings/{screening}/bookings', [BookingController::class, 'cinema']);
