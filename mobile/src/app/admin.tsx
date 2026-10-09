@@ -1,17 +1,11 @@
+import { AppAlert } from "@/lib/alert";
 import { TierEditor } from "@/components/tier-editor";
 import { PosterUpload } from "@/components/poster-upload";
 import { LoginSettings } from "@/components/login-settings";
 import { CustomerDirectory } from "@/components/customer-directory";
 import { useCallback, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
-import {
-  Alert,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-  Pressable,
-} from "react-native";
+import { ScrollView, Text, TextInput, View, Pressable } from "react-native";
 import { AppScreen } from "@/components/screen";
 import { PrimaryButton } from "@/components/primary-button";
 import { apiRequest } from "@/lib/api";
@@ -411,7 +405,7 @@ export default function Admin() {
                       label="Archive"
                       disabled={busy || uploading || archive}
                       onPress={() =>
-                        Alert.alert(
+                        AppAlert.alert(
                           "Archive event?",
                           `${e.title} will be removed from both apps.`,
                           [

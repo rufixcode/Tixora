@@ -1,8 +1,8 @@
+import { AppAlert } from "@/lib/alert";
 import { useCallback, useRef, useState } from "react";
 import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import {
-  Alert,
   AppState,
   Linking,
   ScrollView,
@@ -162,7 +162,10 @@ export default function Scanner() {
               autoCorrect={false}
               placeholder="tixora:ticket:…"
               style={styles.input}
-              onChangeText={setCode}
+              onChangeText={(value) => {
+                setCode(value);
+                if (!value) scanLock.current = false;
+              }}
             />
             <PrimaryButton
               label={busy ? "Checking…" : "Check ticket"}
@@ -211,7 +214,7 @@ export default function Scanner() {
                   label={busy ? "Confirming…" : "Confirm guest entry"}
                   disabled={busy || !password}
                   onPress={() =>
-                    Alert.alert(
+                    AppAlert.alert(
                       "Confirm entry?",
                       `Admit one guest to ${result.event_title}? This ticket can only be used once.`,
                       [

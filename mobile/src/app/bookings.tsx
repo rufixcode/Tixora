@@ -1,6 +1,7 @@
+import { AppAlert } from "@/lib/alert";
 import { useCallback, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Alert, AppState, ScrollView, Text, View } from "react-native";
+import { AppState, ScrollView, Text, View } from "react-native";
 import { AppScreen } from "@/components/screen";
 import { PrimaryButton } from "@/components/primary-button";
 import { apiRequest } from "@/lib/api";
@@ -143,7 +144,7 @@ export default function Bookings() {
                   label="Cancel booking"
                   disabled={busy}
                   onPress={() =>
-                    Alert.alert(
+                    AppAlert.alert(
                       "Cancel booking?",
                       "This releases the reserved tickets.",
                       [

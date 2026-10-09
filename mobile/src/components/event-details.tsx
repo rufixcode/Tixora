@@ -1,5 +1,6 @@
 import { EventActions } from "@/components/event-actions";
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { PosterImage } from "@/components/poster-image";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { BackButton } from "@/components/back-button";
 import { AppScreen } from "@/components/screen";
@@ -33,9 +34,9 @@ export function EventDetails({
           ]}
         >
           {event.image ? (
-            <Image
-              accessibilityLabel={`${event.title} artwork`}
-              source={{ uri: event.image }}
+            <PosterImage
+              title={event.title}
+              uri={event.image}
               style={styles.image}
             />
           ) : (

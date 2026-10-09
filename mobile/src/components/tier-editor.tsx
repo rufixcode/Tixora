@@ -1,5 +1,6 @@
+import { AppAlert } from "@/lib/alert";
 import { useState } from "react";
-import { Alert, Text, TextInput, View } from "react-native";
+import { Text, TextInput, View } from "react-native";
 import { apiRequest } from "@/lib/api";
 import type { TixEvent } from "@/lib/events";
 import { PrimaryButton } from "@/components/primary-button";
@@ -87,7 +88,7 @@ export function TierEditor({
             label="Delete tier"
             disabled={busy || event.tiers.length <= 1}
             onPress={() =>
-              Alert.alert("Delete tier?", t.name, [
+              AppAlert.alert("Delete tier?", t.name, [
                 { text: "Keep", style: "cancel" },
                 {
                   text: "Delete",

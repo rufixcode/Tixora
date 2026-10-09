@@ -1,4 +1,5 @@
 import { apiBaseUrl } from "@/config/api";
+import { mediaUrl } from "@/lib/media";
 
 export class ApiError extends Error {
   constructor(
@@ -28,17 +29,14 @@ export async function apiRequest<T>(
   if (token) headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...fetchOptions,
+    cache: "no-store",
     headers,
   });
   const body = response.headers
     .get("content-type")
     ?.includes("application/json")
     ? JSON.parse(await response.text(), (key, value) =>
-        key === "image" &&
-        typeof value === "string" &&
-        value.startsWith("/api/media/")
-          ? apiBaseUrl.replace(/\/api$/, "") + value
-          : value,
+        key === "image" && typeof value === "string" ? mediaUrl(value) : value,
       )
     : null;
   if (!response.ok) {

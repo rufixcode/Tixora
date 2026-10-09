@@ -47,6 +47,10 @@ class AssistantMediaTest extends TestCase
         $this->admin();
         $path = $this->postJson('/api/admin/images', ['image' => $this->poster()])->assertCreated()->json('image');
         $this->assertMatchesRegularExpression('~^/api/media/[a-f0-9-]+\.png$~', $path);
+        $this->assertCount(0, Storage::disk('public')->allFiles());
+        $this->assertDatabaseHas('poster_images', ['filename' => basename($path), 'mime_type' => 'image/png']);
+        // A fresh runtime with no uploaded local files must still serve the poster.
+        Storage::fake('public');
         $this->get($path)->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff')->assertHeader('Content-Type', 'image/png');
         $this->postJson('/api/admin/events', [...$this->listing(), 'image' => $path])->assertOk();
         $this->getJson('/web/events/upload-show')->assertJsonPath('image', $path);
