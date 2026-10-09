@@ -22,6 +22,7 @@ install -o root -g www-data -m 0640 "$MYSQL_ATTR_SSL_CA" storage/app/private/ren
 export MYSQL_ATTR_SSL_CA=/var/www/html/storage/app/private/render-certs/aiven-ca.pem
 php -r '$p=getenv("MYSQL_ATTR_SSL_CA"); $s=stat($p); $g=posix_getgrnam("www-data"); if (!$s || !$g || $s["gid"] !== $g["gid"] || !($s["mode"] & 0040)) { fwrite(STDERR, "Runtime CA certificate permissions are invalid.\n"); exit(1); }'
 php artisan config:cache
+php artisan tixora:payment-status
 php artisan view:cache
 # Apply migrations deliberately from a trusted workstation, never on each boot.
 exec apache2-foreground
