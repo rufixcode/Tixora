@@ -21,6 +21,16 @@ dist/
 build/
 .expo/
 .expo-shared/
+.output/
+.tanstack/
+.nitro/
+.vinxi/
+
+# Generated local caches
+__pycache__/
+*.pyc
+.phpunit.cache/
+.phpunit.result.cache
 
 # IDE
 .vscode/
