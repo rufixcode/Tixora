@@ -53,5 +53,12 @@ The Expo mobile web app and APK are separate deployments. This configuration
 does not deploy mobile/ or replace its API settings. Test browser CORS separately
 before publishing the mobile web project.
 
+The deployed mobile web address is https://tixora-mobile.vercel.app. Its Vercel
+project needs EXPO_PUBLIC_API_URL=https://tixora-e6rf.onrender.com/api at build
+time; redeploy after changing it. Render's CORS_ALLOWED_ORIGINS should be exactly
+https://tixora-mobile.vercel.app (no trailing slash). The backend allows that
+origin for API bearer-token requests, not for website cookie/session routes.
+Use a comma-separated list for additional approved web origins; avoid wildcards.
+
 References: [TanStack Start on Vercel](https://vercel.com/kb/guide/deploy-a-tanstack-start-app-to-vercel),
 [external rewrites](https://vercel.com/docs/routing/rewrites).
