@@ -13,7 +13,11 @@ export default function Favorites() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const load = useCallback(async () => {
-    if (!session) return;
+    if (!session) {
+      setItems([]);
+      setError("Sign in to view saved events.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -21,6 +25,7 @@ export default function Favorites() {
         await apiRequest<TixEvent[]>("/favorites", { token: session.token }),
       );
     } catch (e) {
+      setItems([]);
       setError((e as Error).message);
     } finally {
       setBusy(false);
@@ -77,7 +82,13 @@ export default function Favorites() {
             </Text>
             <PrimaryButton
               label="View event"
-              onPress={() => router.push(`/events/${e.slug}` as never)}
+              onPress={() =>
+                router.push(
+                  (e.category === "Movies"
+                    ? `/cinema/${e.slug}`
+                    : `/events/${e.slug}`) as never,
+                )
+              }
             />
             <PrimaryButton
               label="Remove from saved"

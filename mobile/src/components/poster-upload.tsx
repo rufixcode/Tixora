@@ -4,6 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import { PrimaryButton } from "@/components/primary-button";
 import { apiRequest } from "@/lib/api";
 import { apiBaseUrl } from "@/config/api";
+import { mediaUrl } from "@/lib/media";
 export function PosterUpload({
   value,
   token,
@@ -53,9 +54,7 @@ export function PosterUpload({
       onBusy(false);
     }
   }
-  const preview = value.startsWith("/api/media/")
-    ? apiBaseUrl.replace(/\/api$/, "") + value
-    : value;
+  const preview = mediaUrl(value);
   return (
     <View style={{ gap: 8 }}>
       <PrimaryButton

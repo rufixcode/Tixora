@@ -44,6 +44,7 @@ export function EventActions({ event }: { event: TixEvent }) {
     }
   }
   async function pay() {
+    if (busy) return;
     if (!session) {
       router.push("/login" as never);
       return;
@@ -64,8 +65,9 @@ export function EventActions({ event }: { event: TixEvent }) {
           }),
         },
       );
-      await openCheckout(result.checkout_url);
-      router.push("/bookings" as never);
+      const checkout = openCheckout(result.checkout_url);
+      router.replace("/bookings" as never);
+      await checkout;
     } catch (e) {
       setError(
         `${(e as Error).message} Check My bookings before starting another order.`,
@@ -136,7 +138,10 @@ export function EventActions({ event }: { event: TixEvent }) {
               !event.booking_available ||
               !tier ||
               Number(quantity) < 1 ||
-              Number(quantity) > 8
+              Number(quantity) > 8 ||
+              !Number.isInteger(Number(quantity)) ||
+              Number(quantity) >
+                (event.tiers.find((item) => item.id === tier)?.remaining ?? 0)
             }
             onPress={() => void pay()}
           />

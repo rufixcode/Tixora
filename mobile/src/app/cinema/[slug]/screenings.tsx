@@ -1,37 +1,356 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { BackButton } from '@/components/back-button';
-import { AppScreen } from '@/components/screen';
-import { LoadingState, MessageState } from '@/components/state-view';
-import { type Screening, getMovieScreenings } from '@/lib/cinema';
-import { formatPrice } from '@/lib/events';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { BackButton } from "@/components/back-button";
+import { AppScreen } from "@/components/screen";
+import { LoadingState, MessageState } from "@/components/state-view";
+import { type Screening, getMovieScreenings } from "@/lib/cinema";
+import { formatPrice } from "@/lib/events";
+import { colors, radius, spacing, typography } from "@/theme/tokens";
 
 const dateKey = (value: string) => value.slice(0, 10);
-const dateLabel = (value: string) => new Intl.DateTimeFormat('en-PH', { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(value));
-const timeLabel = (value: string) => new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' }).format(new Date(value));
+const dateLabel = (value: string) =>
+  new Intl.DateTimeFormat("en-PH", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
+const timeLabel = (value: string) =>
+  new Intl.DateTimeFormat("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
 
 export default function ScreeningSelectionScreen() {
-  const router = useRouter(); const { slug } = useLocalSearchParams<{ slug: string }>();
-  const [screenings, setScreenings] = useState<Screening[] | null>(null); const [title, setTitle] = useState(''); const [error, setError] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null); const [selectedCinema, setSelectedCinema] = useState<number | null>(null); const [selectedShowtime, setSelectedShowtime] = useState<number | null>(null);
-  const load = useCallback(async () => { if (!slug) return; setError(false); try { const response = await getMovieScreenings(slug); setTitle(response.movie.title); setScreenings(response.screenings); } catch { setError(true); } }, [slug]);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { void load(); }, [load]);
-  const available = useMemo(() => (screenings ?? []).filter((item) => item.available && item.available_seat_count > 0), [screenings]);
-  const dates = useMemo(() => [...new Set(available.map((item) => dateKey(item.start_time)))], [available]);
-  const cinemas = useMemo(() => selectedDate ? [...new Map(available.filter((item) => dateKey(item.start_time) === selectedDate).map((item) => [item.cinema_id, item])).values()] : [], [available, selectedDate]);
-  const showtimes = useMemo(() => selectedDate && selectedCinema ? available.filter((item) => dateKey(item.start_time) === selectedDate && item.cinema_id === selectedCinema) : [], [available, selectedDate, selectedCinema]);
-  function pickDate(value: string) { setSelectedDate(value); setSelectedCinema(null); setSelectedShowtime(null); }
-  function pickCinema(value: number) { setSelectedCinema(value); setSelectedShowtime(null); }
-  if (!screenings && !error) return <AppScreen><LoadingState label="Loading available screenings…" /></AppScreen>;
-  if (error) return <AppScreen><MessageState title="Couldn’t load screenings" detail="Please check your connection and try again." actionLabel="Try again" onAction={() => void load()} /></AppScreen>;
-  if (!available.length) return <AppScreen><MessageState title="No available screenings" detail="Tixora does not currently have an available screening for this movie." actionLabel="Back to movie" onAction={() => router.back()} /></AppScreen>;
+  const router = useRouter();
+  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const [screenings, setScreenings] = useState<Screening[] | null>(null);
+  const [title, setTitle] = useState("");
+  const [error, setError] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedCinema, setSelectedCinema] = useState<number | null>(null);
+  const [selectedShowtime, setSelectedShowtime] = useState<number | null>(null);
+  const load = useCallback(async () => {
+    if (!slug) return;
+    setError(false);
+    try {
+      const response = await getMovieScreenings(slug);
+      setTitle(response.movie.title);
+      setScreenings(response.screenings);
+    } catch {
+      setError(true);
+    }
+  }, [slug]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+  const available = useMemo(
+    () =>
+      (screenings ?? []).filter(
+        (item) => item.available && item.available_seat_count > 0,
+      ),
+    [screenings],
+  );
+  const dates = useMemo(
+    () => [...new Set(available.map((item) => dateKey(item.start_time)))],
+    [available],
+  );
+  const cinemas = useMemo(
+    () =>
+      selectedDate
+        ? [
+            ...new Map(
+              available
+                .filter((item) => dateKey(item.start_time) === selectedDate)
+                .map((item) => [item.cinema_id, item]),
+            ).values(),
+          ]
+        : [],
+    [available, selectedDate],
+  );
+  const showtimes = useMemo(
+    () =>
+      selectedDate && selectedCinema
+        ? available.filter(
+            (item) =>
+              dateKey(item.start_time) === selectedDate &&
+              item.cinema_id === selectedCinema,
+          )
+        : [],
+    [available, selectedDate, selectedCinema],
+  );
+  function pickDate(value: string) {
+    setSelectedDate(value);
+    setSelectedCinema(null);
+    setSelectedShowtime(null);
+  }
+  function pickCinema(value: number) {
+    setSelectedCinema(value);
+    setSelectedShowtime(null);
+  }
+  if (!screenings && !error)
+    return (
+      <AppScreen>
+        <LoadingState label="Loading available screenings…" />
+      </AppScreen>
+    );
+  if (error)
+    return (
+      <AppScreen>
+        <MessageState
+          title="Couldn’t load screenings"
+          detail="Please check your connection and try again."
+          actionLabel="Try again"
+          onAction={() => void load()}
+        />
+      </AppScreen>
+    );
+  if (!available.length)
+    return (
+      <AppScreen>
+        <MessageState
+          title="No available screenings"
+          detail="Tixora does not currently have an available screening for this movie."
+          actionLabel="Back to movie"
+          onAction={() => router.back()}
+        />
+      </AppScreen>
+    );
   const chosenShowtime = showtimes.find((item) => item.id === selectedShowtime);
-  return <AppScreen><ScrollView contentContainerStyle={styles.content}><BackButton label="Back to movie details" onPress={() => router.back()} /><Text style={styles.title}>Available showtimes</Text><Text style={styles.copy}>{title}</Text><Step title="1. Select date"><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontal}>{dates.map((date) => <Choice active={selectedDate === date} key={date} label={dateLabel(`${date}T12:00:00`)} onPress={() => pickDate(date)} />)}</ScrollView></Step>{selectedDate ? <Step title="2. Select cinema"><View style={styles.choices}>{cinemas.map((cinema) => <Choice active={selectedCinema === cinema.cinema_id} key={cinema.cinema_id} label={`${cinema.cinema_name} · ${cinema.mall_name}`} onPress={() => pickCinema(cinema.cinema_id)} />)}</View></Step> : null}{selectedCinema ? <Step title="3. Select showtime"><View style={styles.choices}>{showtimes.map((showtime) => <Pressable accessibilityRole="button" key={showtime.id} onPress={() => setSelectedShowtime(showtime.id)} style={[styles.showtime, selectedShowtime === showtime.id && styles.active]}><Text style={[styles.showtimeTime, selectedShowtime === showtime.id && styles.activeText]}>{timeLabel(showtime.start_time)}</Text><Text style={[styles.showtimeMeta, selectedShowtime === showtime.id && styles.activeText]}>{showtime.screen_name} · {formatPrice(showtime.ticket_price)}</Text><Text style={[styles.showtimeMeta, selectedShowtime === showtime.id && styles.activeText]}>{showtime.available_seat_count} seats available</Text></Pressable>)}</View></Step> : null}{chosenShowtime ? <View style={styles.selectedNotice}><Text style={styles.selectedTitle}>Showtime selected</Text><Text style={styles.selectedCopy}>{timeLabel(chosenShowtime.start_time)} · {chosenShowtime.cinema_name}, {chosenShowtime.mall_name}</Text><Pressable accessibilityRole="button" onPress={() => router.push(`/cinema/${slug}/screenings/${chosenShowtime.id}/seats` as never)} style={styles.continue}><Text style={styles.continueText}>Choose seats</Text></Pressable></View> : <Text style={styles.hint}>Select a date, cinema, and showtime to continue.</Text>}</ScrollView></AppScreen>;
+  return (
+    <AppScreen>
+      <ScrollView contentContainerStyle={styles.content}>
+        <BackButton
+          label="Back to movie details"
+          onPress={() => router.back()}
+        />
+        <Text style={styles.title}>Available showtimes</Text>
+        <Text style={styles.copy}>{title}</Text>
+        <Step title="1. Select date">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontal}
+          >
+            {dates.map((date) => (
+              <Choice
+                active={selectedDate === date}
+                key={date}
+                label={dateLabel(`${date}T12:00:00`)}
+                onPress={() => pickDate(date)}
+              />
+            ))}
+          </ScrollView>
+        </Step>
+        {selectedDate ? (
+          <Step title="2. Select cinema">
+            <View style={styles.choices}>
+              {cinemas.map((cinema) => (
+                <Choice
+                  active={selectedCinema === cinema.cinema_id}
+                  key={cinema.cinema_id}
+                  label={`${cinema.cinema_name} · ${cinema.mall_name}`}
+                  onPress={() => pickCinema(cinema.cinema_id)}
+                />
+              ))}
+            </View>
+          </Step>
+        ) : null}
+        {selectedCinema ? (
+          <Step title="3. Select showtime">
+            <View style={styles.choices}>
+              {showtimes.map((showtime) => (
+                <Pressable
+                  accessibilityRole="button"
+                  key={showtime.id}
+                  onPress={() => setSelectedShowtime(showtime.id)}
+                  style={[
+                    styles.showtime,
+                    selectedShowtime === showtime.id && styles.active,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.showtimeTime,
+                      selectedShowtime === showtime.id && styles.activeText,
+                    ]}
+                  >
+                    {timeLabel(showtime.start_time)}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.showtimeMeta,
+                      selectedShowtime === showtime.id && styles.activeText,
+                    ]}
+                  >
+                    {showtime.screen_name} ·{" "}
+                    {formatPrice(showtime.ticket_price)}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.showtimeMeta,
+                      selectedShowtime === showtime.id && styles.activeText,
+                    ]}
+                  >
+                    {showtime.available_seat_count} seats available
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </Step>
+        ) : null}
+        {chosenShowtime ? (
+          <View style={styles.selectedNotice}>
+            <Text style={styles.selectedTitle}>Showtime selected</Text>
+            <Text style={styles.selectedCopy}>
+              {timeLabel(chosenShowtime.start_time)} ·{" "}
+              {chosenShowtime.cinema_name}, {chosenShowtime.mall_name}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() =>
+                router.push(
+                  `/cinema/${slug}/screenings/${chosenShowtime.id}/seats` as never,
+                )
+              }
+              style={styles.continue}
+            >
+              <Text style={styles.continueText}>Choose seats</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Text style={styles.hint}>
+            Select a date, cinema, and showtime to continue.
+          </Text>
+        )}
+      </ScrollView>
+    </AppScreen>
+  );
 }
-function Step({ title, children }: { title: string; children: React.ReactNode }) { return <View style={styles.step}><Text style={styles.stepTitle}>{title}</Text>{children}</View>; }
-function Choice({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) { return <Pressable accessibilityRole="button" onPress={onPress} style={[styles.choice, active && styles.active]}><Text style={[styles.choiceText, active && styles.activeText]}>{label}</Text></Pressable>; }
-const styles = StyleSheet.create({ content: { padding: spacing.lg, paddingBottom: spacing.xxl }, title: { color: colors.foreground, fontSize: typography.display, fontWeight: '800', marginTop: spacing.lg }, copy: { color: colors.mutedForeground, fontSize: typography.body, marginTop: spacing.xs }, step: { marginTop: spacing.xl }, stepTitle: { color: colors.foreground, fontSize: typography.title, fontWeight: '800', marginBottom: spacing.md }, horizontal: { gap: spacing.sm, paddingRight: spacing.lg }, choices: { gap: spacing.sm }, choice: { borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, padding: spacing.md }, choiceText: { color: colors.foreground, fontSize: typography.label, fontWeight: '700' }, active: { backgroundColor: colors.primary, borderColor: colors.primary }, activeText: { color: colors.white }, showtime: { borderColor: colors.border, borderRadius: radius.md, borderWidth: 1, padding: spacing.md }, showtimeTime: { color: colors.foreground, fontSize: typography.body, fontWeight: '800' }, showtimeMeta: { color: colors.mutedForeground, fontSize: 13, marginTop: spacing.xs }, selectedNotice: { backgroundColor: colors.primarySoft, borderRadius: radius.md, marginTop: spacing.xl, padding: spacing.md }, selectedTitle: { color: colors.primaryDeep, fontSize: typography.body, fontWeight: '800' }, selectedCopy: { color: colors.foreground, fontSize: typography.label, lineHeight: 20, marginTop: spacing.xs }, continue: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: radius.md, justifyContent: 'center', marginTop: spacing.md, minHeight: 48 }, continueText: { color: colors.white, fontSize: typography.label, fontWeight: '800' }, hint: { color: colors.mutedForeground, fontSize: 13, marginTop: spacing.xl, textAlign: 'center' } });
+function Step({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.step}>
+      <Text style={styles.stepTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+function Choice({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[styles.choice, active && styles.active]}
+    >
+      <Text style={[styles.choiceText, active && styles.activeText]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+const styles = StyleSheet.create({
+  content: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  title: {
+    color: colors.foreground,
+    fontSize: typography.display,
+    fontWeight: "800",
+    marginTop: spacing.lg,
+  },
+  copy: {
+    color: colors.mutedForeground,
+    fontSize: typography.body,
+    marginTop: spacing.xs,
+  },
+  step: { marginTop: spacing.xl },
+  stepTitle: {
+    color: colors.foreground,
+    fontSize: typography.title,
+    fontWeight: "800",
+    marginBottom: spacing.md,
+  },
+  horizontal: { gap: spacing.sm, paddingRight: spacing.lg },
+  choices: { gap: spacing.sm },
+  choice: {
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  choiceText: {
+    color: colors.foreground,
+    fontSize: typography.label,
+    fontWeight: "700",
+  },
+  active: { backgroundColor: colors.primary, borderColor: colors.primary },
+  activeText: { color: colors.white },
+  showtime: {
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  showtimeTime: {
+    color: colors.foreground,
+    fontSize: typography.body,
+    fontWeight: "800",
+  },
+  showtimeMeta: {
+    color: colors.mutedForeground,
+    fontSize: 13,
+    marginTop: spacing.xs,
+  },
+  selectedNotice: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.md,
+    marginTop: spacing.xl,
+    padding: spacing.md,
+  },
+  selectedTitle: {
+    color: colors.primaryDeep,
+    fontSize: typography.body,
+    fontWeight: "800",
+  },
+  selectedCopy: {
+    color: colors.foreground,
+    fontSize: typography.label,
+    lineHeight: 20,
+    marginTop: spacing.xs,
+  },
+  continue: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    justifyContent: "center",
+    marginTop: spacing.md,
+    minHeight: 48,
+  },
+  continueText: {
+    color: colors.white,
+    fontSize: typography.label,
+    fontWeight: "800",
+  },
+  hint: {
+    color: colors.mutedForeground,
+    fontSize: 13,
+    marginTop: spacing.xl,
+    textAlign: "center",
+  },
+});

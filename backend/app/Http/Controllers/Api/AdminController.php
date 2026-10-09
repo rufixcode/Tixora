@@ -105,7 +105,7 @@ class AdminController extends Controller
     private function save(Request $r, ?string $type = null, ?int $id = null)
     {
         $v = $r->validate(['title' => ['required', 'string', 'max:200'], 'category' => ['required', Rule::in(['Movies', 'Concerts', 'Events'])], 'subtitle' => ['nullable', 'string', 'max:255'], 'about' => ['required', 'string', 'max:10000'], 'venue' => ['required', 'string', 'max:200'], 'city' => ['required', 'string', 'max:100'], 'date' => ['required', 'date'], 'time' => ['required', 'date_format:H:i'], 'image' => ['nullable', 'string', 'max:2000', function ($attribute, $value, $fail) {
-            $uploaded = preg_match('~^/api/media/([a-f0-9-]{36}\.(?:jpg|png|webp))$~D', $value, $matches) && Storage::disk('public')->exists('posters/'.$matches[1]);
+            $uploaded = preg_match('~^/api/media/([a-f0-9-]{36}\.(?:jpg|png|webp))$~D', $value, $matches) && (DB::table('poster_images')->where('filename', $matches[1])->exists() || Storage::disk('public')->exists('posters/'.$matches[1]));
             if (! $uploaded && (! filter_var($value, FILTER_VALIDATE_URL) || parse_url($value, PHP_URL_SCHEME) !== 'https')) {
                 $fail('Use an uploaded poster or a valid HTTPS image URL.');
             }

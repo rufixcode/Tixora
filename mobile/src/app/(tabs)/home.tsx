@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { EventCard } from "@/components/event-card";
+import { PosterImage } from "@/components/poster-image";
 import { AppScreen } from "@/components/screen";
 import { LoadingState, MessageState } from "@/components/state-view";
 import { fetchEvents, type TixEvent } from "@/lib/events";
@@ -46,6 +47,7 @@ export default function HomeScreen() {
         events,
       });
     } catch {
+      setData(null);
       setError(true);
     } finally {
       setLoading(false);
@@ -99,6 +101,18 @@ export default function HomeScreen() {
             onPress={() => goToEvent(data.featured!)}
             style={styles.hero}
           >
+            {data.featured.image ? (
+              <PosterImage
+                uri={data.featured.image}
+                title={data.featured.title}
+                style={{
+                  width: "100%",
+                  height: 180,
+                  borderRadius: 12,
+                  marginBottom: 16,
+                }}
+              />
+            ) : null}
             <Text style={styles.eyebrow}>FEATURED ON TIXORA</Text>
             <Text numberOfLines={2} style={styles.heroTitle}>
               {data.featured.title}
