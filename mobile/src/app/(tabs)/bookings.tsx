@@ -1,12 +1,18 @@
 import { AppAlert } from "@/lib/alert";
 import { useCallback, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
-import { AppState, ScrollView, StyleSheet, Text, View } from "react-native";
-import { BackButton } from "@/components/back-button";
+import {
+  AppState,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { AppScreen } from "@/components/screen";
 import { PrimaryButton } from "@/components/primary-button";
 import { apiRequest } from "@/lib/api";
-import { openCheckout } from "@/lib/checkout";
+import { prepareCheckout } from "@/lib/checkout";
 import { formatPrice } from "@/lib/events";
 import { useAuth } from "@/providers/auth-provider";
 import { colors } from "@/theme/tokens";
@@ -26,6 +32,7 @@ export default function Bookings() {
   const [items, setItems] = useState<Booking[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [filter, setFilter] = useState("all");
   const pending = useRef(false);
   const actionLock = useRef(false);
   const load = useCallback(async () => {
@@ -56,6 +63,9 @@ export default function Bookings() {
   useFocusEffect(
     useCallback(() => {
       void load();
+      const subscription = AppState.addEventListener("change", (state) => {
+        if (state === "active" && !actionLock.current) void load();
+      });
       const timer = setInterval(() => {
         if (
           pending.current &&
@@ -64,7 +74,10 @@ export default function Bookings() {
         )
           void load();
       }, 15000);
-      return () => clearInterval(timer);
+      return () => {
+        clearInterval(timer);
+        subscription.remove();
+      };
     }, [load]),
   );
   async function action(id: number, kind: "checkout" | "cancel") {
@@ -72,14 +85,18 @@ export default function Bookings() {
     actionLock.current = true;
     setBusy(true);
     setError("");
+    let checkout: ReturnType<typeof prepareCheckout> | undefined;
     try {
+      if (kind === "checkout") checkout = prepareCheckout();
       const r = await apiRequest<{ checkout_url?: string }>(
         `/bookings/${id}/${kind}`,
         { method: "POST", token: session.token },
       );
-      if (r.checkout_url) await openCheckout(r.checkout_url);
+      if (r.checkout_url) await checkout?.open(r.checkout_url);
+      else checkout?.cancel();
       await load();
     } catch (e) {
+      checkout?.cancel();
       setError((e as Error).message);
     } finally {
       actionLock.current = false;
@@ -90,10 +107,6 @@ export default function Bookings() {
     <AppScreen>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <BackButton
-            label="Back to account"
-            onPress={() => router.replace("/account" as never)}
-          />
           <Text style={styles.eyebrow}>TIXORA · YOUR TICKETS</Text>
         </View>
         <Text style={styles.title}>My bookings</Text>
@@ -111,6 +124,33 @@ export default function Bookings() {
             {error}
           </Text>
         )}
+        <View style={styles.row}>
+          {(
+            [
+              ["all", "All"],
+              ["confirmed", "Tickets"],
+              ["pending", "Pending"],
+            ] as const
+          ).map(([value, label]) => (
+            <Pressable
+              key={value}
+              accessibilityRole="button"
+              accessibilityState={{ selected: filter === value }}
+              onPress={() => setFilter(value)}
+              style={[styles.filter, filter === value && styles.selectedFilter]}
+            >
+              <Text
+                style={{
+                  color:
+                    filter === value ? colors.primary : colors.mutedForeground,
+                  fontWeight: "700",
+                }}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
         {!busy && !error && !items.length && (
           <View style={styles.notice}>
             <Text style={styles.heading}>Your next outing starts here.</Text>
@@ -123,89 +163,95 @@ export default function Bookings() {
             />
           </View>
         )}
-        {items.map((b) => (
-          <View key={b.id} style={styles.booking}>
-            <View style={styles.row}>
-              <Text
-                style={[
-                  styles.status,
-                  b.status === "confirmed" && styles.confirmed,
-                ]}
-              >
-                {b.status === "confirmed"
-                  ? "PAYMENT VERIFIED"
-                  : b.status === "pending"
-                    ? "PAYMENT PENDING"
-                    : b.status.toUpperCase()}
+        {!!items.length &&
+          !items.some((b) => filter === "all" || b.status === filter) && (
+            <Text style={styles.copy}>No bookings in this section yet.</Text>
+          )}
+        {items
+          .filter((b) => filter === "all" || b.status === filter)
+          .map((b) => (
+            <View key={b.id} style={styles.booking}>
+              <View style={styles.row}>
+                <Text
+                  style={[
+                    styles.status,
+                    b.status === "confirmed" && styles.confirmed,
+                  ]}
+                >
+                  {b.status === "confirmed"
+                    ? "PAYMENT VERIFIED"
+                    : b.status === "pending"
+                      ? "PAYMENT PENDING"
+                      : b.status.toUpperCase()}
+                </Text>
+                <Text style={styles.test}>TEST MODE</Text>
+              </View>
+              <Text style={styles.heading}>
+                {b.event_title ?? b.booking_reference}
               </Text>
-              <Text style={styles.test}>TEST MODE</Text>
-            </View>
-            <Text style={styles.heading}>
-              {b.event_title ?? b.booking_reference}
-            </Text>
-            <Text selectable style={styles.reference}>
-              {b.booking_reference}
-            </Text>
-            <View style={styles.row}>
-              <Text style={styles.copy}>Booking total</Text>
-              <Text style={styles.total}>{formatPrice(b.total_amount)}</Text>
-            </View>
-            {!!b.seats.length && (
-              <Text style={styles.copy}>
-                Seats:{" "}
-                {b.seats
-                  .map((s) => `${s.row_label}${s.seat_number}`)
-                  .join(", ")}
+              <Text selectable style={styles.reference}>
+                {b.booking_reference}
               </Text>
-            )}
-            {b.status === "confirmed" &&
-              b.tickets.map((t) => (
-                <QrTicket
-                  key={t.ticket_number}
-                  ticket={t}
-                  title={b.event_title}
-                  reference={b.booking_reference}
-                />
-              ))}
-            {b.status === "pending" && (
-              <>
-                <View style={styles.notice}>
-                  <Text style={styles.noticeTitle}>
-                    Waiting for payment verification
-                  </Text>
-                  <Text style={styles.copy}>
-                    Already paid? Refresh the status while PayMongo confirms it.
-                    Your QR will appear once verification is complete.
-                  </Text>
-                </View>
-                <PrimaryButton
-                  label="Continue test payment"
-                  disabled={busy}
-                  onPress={() => void action(b.id, "checkout")}
-                />
-                <PrimaryButton
-                  label="Cancel booking"
-                  variant="text"
-                  disabled={busy}
-                  onPress={() =>
-                    AppAlert.alert(
-                      "Cancel booking?",
-                      "This releases the reserved tickets.",
-                      [
-                        { text: "Keep booking", style: "cancel" },
-                        {
-                          text: "Cancel booking",
-                          style: "destructive",
-                          onPress: () => void action(b.id, "cancel"),
-                        },
-                      ],
-                    )
-                  }
-                />
-              </>
-            )}
-          </View>
-        ))}
+              <View style={styles.row}>
+                <Text style={styles.copy}>Booking total</Text>
+                <Text style={styles.total}>{formatPrice(b.total_amount)}</Text>
+              </View>
+              {!!b.seats.length && (
+                <Text style={styles.copy}>
+                  Seats:{" "}
+                  {b.seats
+                    .map((s) => `${s.row_label}${s.seat_number}`)
+                    .join(", ")}
+                </Text>
+              )}
+              {b.status === "confirmed" &&
+                b.tickets.map((t) => (
+                  <QrTicket
+                    key={t.ticket_number}
+                    ticket={t}
+                    title={b.event_title}
+                    reference={b.booking_reference}
+                  />
+                ))}
+              {b.status === "pending" && (
+                <>
+                  <View style={styles.notice}>
+                    <Text style={styles.noticeTitle}>
+                      Waiting for payment verification
+                    </Text>
+                    <Text style={styles.copy}>
+                      Already paid? Refresh the status while PayMongo confirms
+                      it. Your QR will appear once verification is complete.
+                    </Text>
+                  </View>
+                  <PrimaryButton
+                    label="Continue test payment"
+                    disabled={busy}
+                    onPress={() => void action(b.id, "checkout")}
+                  />
+                  <PrimaryButton
+                    label="Cancel booking"
+                    variant="text"
+                    disabled={busy}
+                    onPress={() =>
+                      AppAlert.alert(
+                        "Cancel booking?",
+                        "This releases the reserved tickets.",
+                        [
+                          { text: "Keep booking", style: "cancel" },
+                          {
+                            text: "Cancel booking",
+                            style: "destructive",
+                            onPress: () => void action(b.id, "cancel"),
+                          },
+                        ],
+                      )
+                    }
+                  />
+                </>
+              )}
+            </View>
+          ))}
       </ScrollView>
     </AppScreen>
   );
@@ -220,6 +266,19 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   header: { flexDirection: "row", alignItems: "center", gap: 12 },
+  filter: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  selectedFilter: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+  },
   eyebrow: {
     color: colors.primary,
     fontSize: 11,

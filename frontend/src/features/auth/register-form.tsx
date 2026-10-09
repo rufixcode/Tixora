@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 import { Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 
@@ -9,8 +9,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/api";
+import { eventSlugFromNext } from "@/lib/login-return";
 
 export function RegisterForm() {
+  const { next } = useSearch({ from: "/register" });
+  const returnSlug = eventSlugFromNext(next);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -92,11 +95,19 @@ export function RegisterForm() {
               <p className="mt-1 text-muted-foreground">
                 Your account has been created successfully.
               </p>
-              <Button asChild className="mt-4 w-full">
-                <Link to="/events" search={{ q: undefined, category: undefined }}>
-                  Start browsing events
-                </Link>
-              </Button>
+              {returnSlug ? (
+                <Button asChild className="mt-4 w-full">
+                  <Link to="/events/$slug" params={{ slug: returnSlug }}>
+                    Continue to your event
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild className="mt-4 w-full">
+                  <Link to="/events" search={{ q: undefined, category: undefined }}>
+                    Start browsing events
+                  </Link>
+                </Button>
+              )}
             </div>
           ) : (
             <form onSubmit={submit} className="mt-6 space-y-4">
@@ -191,7 +202,11 @@ export function RegisterForm() {
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link to="/login" className="font-semibold text-primary hover:underline">
+            <Link
+              to="/login"
+              search={{ next }}
+              className="font-semibold text-primary hover:underline"
+            >
               Sign in
             </Link>
           </p>

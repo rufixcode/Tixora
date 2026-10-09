@@ -1,10 +1,23 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
+import { apiRequest } from "@/lib/api";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { FavoriteButton } from "@/components/favorite-button";
 import { Checkout } from "@/features/events/checkout";
 import { getEvent } from "@/lib/events";
 export const Route = createFileRoute("/events/$slug")({
+  // The web session is checked through the same-origin browser API.
+  ssr: false,
+  beforeLoad: async ({ params }) => {
+    try {
+      await apiRequest("/me");
+    } catch (error) {
+      if ((error as { status?: number }).status === 401) {
+        throw redirect({ to: "/login", search: { next: `/events/${params.slug}` }, replace: true });
+      }
+      throw error;
+    }
+  },
   loader: async ({ params }) => {
     const event = await getEvent(params.slug);
     if (!event) throw notFound();

@@ -1,9 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "expo-router";
 import { View, Text, Pressable, TextInput } from "react-native";
 import { PrimaryButton } from "@/components/primary-button";
 import { apiRequest } from "@/lib/api";
-import { openCheckout, requestKey } from "@/lib/checkout";
 import { formatPrice, type TixEvent } from "@/lib/events";
 import { useAuth } from "@/providers/auth-provider";
 import { colors } from "@/theme/tokens";
@@ -15,7 +14,6 @@ export function EventActions({ event }: { event: TixEvent }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
-  const key = useRef<string | null>(null);
   useEffect(() => {
     if (!session) return;
     let active = true;
@@ -43,43 +41,11 @@ export function EventActions({ event }: { event: TixEvent }) {
       setBusy(false);
     }
   }
-  async function pay() {
-    if (busy) return;
-    if (!session) {
-      router.push("/login" as never);
-      return;
-    }
-    setBusy(true);
-    setError("");
-    key.current ??= requestKey();
-    try {
-      const result = await apiRequest<{ checkout_url: string }>(
-        `/events/${encodeURIComponent(event.slug)}/bookings`,
-        {
-          method: "POST",
-          token: session.token,
-          body: JSON.stringify({
-            ticket_type_id: tier,
-            quantity: Number(quantity),
-            request_key: key.current,
-          }),
-        },
-      );
-      const checkout = openCheckout(result.checkout_url);
-      router.replace("/bookings" as never);
-      await checkout;
-    } catch (e) {
-      setError(
-        `${(e as Error).message} Check My bookings before starting another order.`,
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
   return (
     <View style={{ gap: 12, marginTop: 20 }}>
       <PrimaryButton
-        label={saved ? "Saved - remove" : "Save event"}
+        variant="text"
+        label={saved ? "Saved · Remove" : "Save event"}
         onPress={() => void favorite()}
         disabled={busy || !session}
       />
@@ -98,7 +64,6 @@ export function EventActions({ event }: { event: TixEvent }) {
               accessibilityRole="button"
               onPress={() => {
                 setTier(t.id);
-                key.current = null;
               }}
               style={{
                 padding: 14,
@@ -119,7 +84,6 @@ export function EventActions({ event }: { event: TixEvent }) {
             value={quantity}
             onChangeText={(v) => {
               setQuantity(v);
-              key.current = null;
             }}
             style={{
               borderWidth: 1,
@@ -128,11 +92,9 @@ export function EventActions({ event }: { event: TixEvent }) {
               borderRadius: 12,
             }}
           />
-          <Text style={{ color: colors.mutedForeground }}>
-            Test mode · No real charges.
-          </Text>
+
           <PrimaryButton
-            label={busy ? "Please wait..." : "Continue to payment"}
+            label={busy ? "Please wait..." : "Review booking"}
             disabled={
               busy ||
               !event.booking_available ||
@@ -143,7 +105,12 @@ export function EventActions({ event }: { event: TixEvent }) {
               Number(quantity) >
                 (event.tiers.find((item) => item.id === tier)?.remaining ?? 0)
             }
-            onPress={() => void pay()}
+            onPress={() =>
+              router.push({
+                pathname: "/checkout",
+                params: { slug: event.slug, tier, quantity },
+              } as never)
+            }
           />
         </>
       )}

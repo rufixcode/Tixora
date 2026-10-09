@@ -1,18 +1,17 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { BackButton } from "@/components/back-button";
+import { StyleSheet, Text, View } from "react-native";
+import { CheckoutReview } from "@/components/checkout-review";
 import { AppScreen } from "@/components/screen";
-import { PrimaryButton } from "@/components/primary-button";
 import { LoadingState, MessageState } from "@/components/state-view";
 import {
   releaseSeatHold,
   reviewSeatHold,
   type BookingReview,
 } from "@/lib/cinema";
-import { formatPrice } from "@/lib/events";
+
 import { apiRequest } from "@/lib/api";
-import { openCheckout, requestKey } from "@/lib/checkout";
+import { prepareCheckout, requestKey } from "@/lib/checkout";
 import { useAuth } from "@/providers/auth-provider";
 import { colors } from "@/theme/tokens";
 export default function BookingReviewScreen() {
@@ -76,8 +75,10 @@ function BookingReviewContent() {
     setBusy(true);
     setError("");
     paymentKey.current ??= requestKey();
-    setPaymentStarted(true);
+    let checkout: ReturnType<typeof prepareCheckout> | undefined;
     try {
+      checkout = prepareCheckout();
+      setPaymentStarted(true);
       const result = await apiRequest<{ checkout_url: string }>(
         `/screenings/${screeningId}/bookings`,
         {
@@ -89,10 +90,10 @@ function BookingReviewContent() {
           }),
         },
       );
-      const checkout = openCheckout(result.checkout_url);
+      await checkout.open(result.checkout_url);
       router.replace("/bookings" as never);
-      await checkout;
     } catch (e) {
+      checkout?.cancel();
       setError(
         `${(e as Error).message} Check My bookings before choosing new seats. You can retry this payment safely.`,
       );
@@ -132,219 +133,73 @@ function BookingReviewContent() {
         <LoadingState label="Validating your selected seats..." />
       </AppScreen>
     );
+  if (!review)
+    return (
+      <AppScreen>
+        <MessageState
+          title="Seats unavailable"
+          detail={error}
+          actionLabel="Choose seats again"
+          onAction={() =>
+            router.replace(
+              `/cinema/${slug}/screenings/${screeningId}/seats` as never,
+            )
+          }
+        />
+      </AppScreen>
+    );
   return (
-    <AppScreen>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <BackButton label="Back" onPress={() => router.back()} />
-          <Text style={styles.brand}>TIXORA CINEMA</Text>
-        </View>
-        <Text style={styles.eyebrow}>SEATS SELECTED · PAYMENT NEXT</Text>
-        <Text style={styles.title}>Review your seats</Text>
-        <Text style={styles.copy}>One last look before your movie night.</Text>
-        {review && (
-          <>
-            <View style={styles.card}>
-              <Text style={styles.label}>YOUR SCREENING</Text>
-              <Text style={styles.heading}>{review.screening.cinema_name}</Text>
-              <Text style={styles.copy}>
-                {review.screening.screen_name} · {review.screening.city}
-              </Text>
-              <Text style={styles.date}>
-                {new Intl.DateTimeFormat("en-PH", {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                }).format(new Date(review.screening.start_time))}
-              </Text>
-              <View style={styles.divider} />
-              <Text style={styles.label}>SELECTED SEATS</Text>
-              <View style={styles.seats}>
-                {review.seats.map((seat) => (
-                  <View key={seat.id} style={styles.seat}>
-                    <Text style={styles.seatText}>
-                      {seat.row_label}
-                      {seat.seat_number}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-              <Text style={styles.copy}>
-                {review.seats.length} admission{" "}
-                {review.seats.length === 1 ? "ticket" : "tickets"}
-              </Text>
-            </View>
-            {!paymentStarted && (
-              <View style={styles.notice}>
-                <Text style={styles.noticeTitle}>
-                  {expired
-                    ? "Seat hold expired"
-                    : remaining === null
-                      ? "Your seats are temporarily held"
-                      : `Seats held for ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`}
-                </Text>
-                <Text style={styles.copy}>
-                  {expired
-                    ? "Choose your seats again to check availability."
-                    : "Begin checkout before the hold expires."}
-                </Text>
-              </View>
-            )}
-            <View style={styles.card}>
-              <Text style={styles.heading}>Payment summary</Text>
-              <View style={styles.row}>
-                <Text style={styles.copy}>
-                  {review.seats.length} ×{" "}
-                  {formatPrice(review.screening.ticket_price)}
-                </Text>
-                <Text style={styles.amount}>
-                  {formatPrice(review.total_amount)}
-                </Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.row}>
-                <Text style={styles.heading}>Total</Text>
-                <Text style={styles.total}>
-                  {formatPrice(review.total_amount)}
-                </Text>
-              </View>
-              <View style={styles.testBadge}>
-                <Text style={styles.testText}>
-                  TEST PAYMENT · NO REAL CHARGE
-                </Text>
-              </View>
-              <Text style={styles.copy}>
-                Continue to PayMongo to choose an available payment method.
-                After verification, your admission QR appears in My bookings.
-              </Text>
-            </View>
-          </>
-        )}
-        {!!error && (
-          <View style={styles.notice}>
-            <Text accessibilityRole="alert" style={styles.error}>
-              {error}
+    <CheckoutReview
+      total={review.total_amount}
+      quantity={review.seats.length}
+      unitPrice={review.screening.ticket_price}
+      busy={busy}
+      disabled={expired}
+      error={error}
+      onPay={() => void pay()}
+      onChange={!paymentStarted ? () => void release() : undefined}
+      notice={
+        expired
+          ? "Seat hold expired. Choose your seats again."
+          : paymentStarted
+            ? "Check My bookings before starting another order."
+            : remaining === null
+              ? "Your seats are temporarily held"
+              : `Seats reserved for ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`
+      }
+    >
+      <Text style={styles.heading}>{review.screening.cinema_name}</Text>
+      <Text style={styles.copy}>
+        {review.screening.screen_name} · {review.screening.city}
+      </Text>
+      <Text style={styles.copy}>
+        {new Intl.DateTimeFormat("en-PH", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(new Date(review.screening.start_time))}
+      </Text>
+      <View style={styles.seats}>
+        {review.seats.map((seat) => (
+          <View key={seat.id} style={styles.seat}>
+            <Text style={styles.seatText}>
+              {seat.row_label}
+              {seat.seat_number}
             </Text>
           </View>
-        )}
-        {review && !expired && (
-          <PrimaryButton
-            label={
-              busy
-                ? "Opening secure checkout…"
-                : paymentStarted
-                  ? "Retry payment"
-                  : `Continue to payment · ${formatPrice(review.total_amount)}`
-            }
-            disabled={busy}
-            onPress={() => void pay()}
-          />
-        )}
-        <PrimaryButton
-          variant="secondary"
-          label="My bookings & payment status"
-          disabled={busy}
-          onPress={() => router.push("/bookings" as never)}
-        />
-        {review && !paymentStarted && (
-          <PrimaryButton
-            variant="text"
-            label="Release seats & choose again"
-            disabled={busy}
-            onPress={() => void release()}
-          />
-        )}
-        {!review && (
-          <PrimaryButton
-            variant="text"
-            label="Choose seats again"
-            onPress={() =>
-              router.replace(
-                `/cinema/${slug}/screenings/${screeningId}/seats` as never,
-              )
-            }
-          />
-        )}
-      </ScrollView>
-    </AppScreen>
+        ))}
+      </View>
+    </CheckoutReview>
   );
 }
 const styles = StyleSheet.create({
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-    gap: 16,
-    maxWidth: 560,
-    width: "100%",
-    alignSelf: "center",
-  },
-  header: { flexDirection: "row", alignItems: "center", gap: 12 },
-  brand: {
-    color: colors.primary,
-    fontWeight: "900",
-    letterSpacing: 2,
-    fontSize: 12,
-  },
-  eyebrow: {
-    color: colors.primary,
-    fontWeight: "800",
-    fontSize: 10,
-    letterSpacing: 1.5,
-    marginTop: 12,
-  },
-  title: { fontSize: 30, fontWeight: "800", color: colors.foreground },
-  copy: { color: colors.mutedForeground, fontSize: 14, lineHeight: 21 },
-  card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 20,
-    padding: 20,
-    gap: 12,
-    backgroundColor: colors.white,
-  },
-  heading: { color: colors.foreground, fontSize: 19, fontWeight: "800" },
-  label: {
-    color: colors.mutedForeground,
-    fontSize: 10,
-    letterSpacing: 1.4,
-    fontWeight: "800",
-  },
-  date: { color: colors.foreground, fontSize: 14, fontWeight: "600" },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: 4 },
+  heading: { fontSize: 18, fontWeight: "800", color: colors.foreground },
+  copy: { fontSize: 13, lineHeight: 20, color: colors.mutedForeground },
   seats: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   seat: {
-    borderRadius: 10,
     backgroundColor: colors.primarySoft,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  seatText: { color: colors.primary, fontWeight: "800", fontSize: 16 },
-  notice: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: 14,
-    padding: 16,
-    gap: 6,
-  },
-  noticeTitle: { color: colors.primaryDeep, fontWeight: "800", fontSize: 14 },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  amount: { color: colors.foreground, fontWeight: "700", fontSize: 14 },
-  total: { color: colors.primary, fontWeight: "900", fontSize: 26 },
-  testBadge: {
-    backgroundColor: colors.muted,
-    padding: 10,
     borderRadius: 8,
-    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  testText: {
-    color: colors.mutedForeground,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.6,
-  },
-  error: { color: colors.destructive, lineHeight: 21 },
+  seatText: { color: colors.primary, fontWeight: "700" },
 });

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouter, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 
@@ -8,9 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/api";
+import { eventSlugFromNext } from "@/lib/login-return";
 
 export function LoginForm() {
   const navigate = useNavigate();
+  const router = useRouter();
+  const { next } = useSearch({ from: "/login" });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -40,7 +43,11 @@ export function LoginForm() {
         body: JSON.stringify({ email, password }),
       });
       window.dispatchEvent(new Event("auth-changed"));
-      void navigate({ to: result.user.is_admin ? "/admin" : "/" });
+      await router.invalidate();
+      const slug = eventSlugFromNext(next);
+      if (result.user.is_admin) await navigate({ to: "/admin" });
+      else if (slug) await navigate({ to: "/events/$slug", params: { slug } });
+      else await navigate({ to: "/" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in right now.");
     } finally {
@@ -56,7 +63,9 @@ export function LoginForm() {
           <p className="eyebrow text-primary">Welcome back</p>
           <h1 className="mt-1 text-3xl font-bold">Sign in</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Access your tickets, saved events and booking history.
+            {next
+              ? "Sign in to view this event and continue your booking."
+              : "Access your tickets, saved events and booking history."}
           </p>
 
           <form onSubmit={submit} className="mt-6 space-y-4">
@@ -114,7 +123,11 @@ export function LoginForm() {
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             New to Tixora?{" "}
-            <Link to="/register" className="font-semibold text-primary hover:underline">
+            <Link
+              to="/register"
+              search={{ next }}
+              className="font-semibold text-primary hover:underline"
+            >
               Create an account
             </Link>
           </p>
